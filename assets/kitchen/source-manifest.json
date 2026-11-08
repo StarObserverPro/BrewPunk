@@ -1,0 +1,226 @@
+[
+  {
+    "file": "k01-preparation.png",
+    "title": "厨房备料",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "C0CDCB0E1D8DD629AAB0D85F8C0095C2F0E9CE4E1D4847B8ECE1C2E131536FA6"
+  },
+  {
+    "file": "k02-mashing.png",
+    "title": "糖化",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "58A7B77F2E5A7663053D9774EC158E3D571169414E9CB26F3DE71C30E079E7AD"
+  },
+  {
+    "file": "k03-boiling.png",
+    "title": "煮沸",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "9D1B3C8B9FAE8265F97DABC0F8CBCC2F55960C7DCC887BFAD182DD5C70FEBE5E"
+  },
+  {
+    "file": "k04-hop-addition.png",
+    "title": "热端投花",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "81478B3AF68B2FAFFD19EA73EB221970E926E1523DA64E8AFE36C108DF6ABD10"
+  },
+  {
+    "file": "k05-cooling.png",
+    "title": "冷却",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "86FD04E4D3374F2A34CF444B738F0EBA3169E3A20F28FFAEF52A7700C254BB77"
+  },
+  {
+    "file": "k06-transfer-pumped.png",
+    "title": "转罐",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "F9919DA3E82E9804BDEDA97440B1940833A4EB01DBCA8CC2D434A13A5172C8E9"
+  },
+  {
+    "file": "k07-boilover.png",
+    "title": "溢锅异常",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "1EFF14D2C2E996C0765F39CAA9C774AF0F5790D5C56D5761F6BD3108C6DD8E9A"
+  },
+  {
+    "file": "k08-cleaned.png",
+    "title": "清洗收尾",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "624A82E3606E151345AC47D7874B9E25FE84E1918860CFF84C3D915CBFDC8D38"
+  },
+  {
+    "file": "f01-pitching.png",
+    "title": "投酵母封罐前",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "614962B27AC1C6B81CE8A9B523B1DD1A05DEBA2BC73BCAFA100FEA29FAF55F04"
+  },
+  {
+    "file": "f02-active-day.png",
+    "title": "日间活跃发酵",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "36AFD2CADEBA2897A2111CBD024AAAB4397678E57409FA860DEC136A8FBA9CF4"
+  },
+  {
+    "file": "f03-night-check.png",
+    "title": "夜间巡检",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "B36E1AE8BE2E87FE4DB88587A7CB81DCA87A78AE8F8AC70792C861D4C6DE71CA"
+  },
+  {
+    "file": "f04-warm-warning.png",
+    "title": "温度偏高",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "BA2D4E48265C901835CB6804C8091E6170376DF8352C3EF3D7F91FF9613F72E3"
+  },
+  {
+    "file": "f05-airlock-foam.png",
+    "title": "泡沫顶入气锁",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "2DE2EC6BFB0EEBC1D74C1609375EE8FB82C4A80310A2AD2D074FF5EB9C38276E"
+  },
+  {
+    "file": "f06-blowoff-recovery.png",
+    "title": "更换排气管",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "813398BF38DD66160F52874AEC9E5D579C29DA3268FB9C32D6E6555B3F6206A6"
+  },
+  {
+    "file": "f07-sampling.png",
+    "title": "取样测比重",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "898795B708F956997D2F86876E131D15AAD10EEDB092473F041C82D031BBD4B2"
+  },
+  {
+    "file": "f08-bottling.png",
+    "title": "分装",
+    "width": 1445,
+    "height": 1089,
+    "sha256": "1D5E6532A7AC4AEB92F87C5E189A5A3E004402058AD3066D631CB91A89C5AB0C"
+  },
+  {
+    "file": "p01-malt-01.jpg",
+    "title": "麦芽 01",
+    "width": 1232,
+    "height": 928,
+    "sha256": "E3F0E1075846373550EED873326E2E36E486E81A7F2EC1C3BF73891F818CEDDF"
+  },
+  {
+    "file": "p01-malt-02.jpg",
+    "title": "麦芽 02",
+    "width": 1232,
+    "height": 928,
+    "sha256": "ABA4C9741D27D3A4451CDB642D934EFBD48ECD1CCD9000A038573285F2656B08"
+  },
+  {
+    "file": "p01-malt-03.jpg",
+    "title": "麦芽 03",
+    "width": 1232,
+    "height": 928,
+    "sha256": "CCF897BC77C46145B094C0F77F501034F1149B4A38AB7F34B753C2F5249D444F"
+  },
+  {
+    "file": "p01-malt-04.jpg",
+    "title": "麦芽 04",
+    "width": 1232,
+    "height": 928,
+    "sha256": "111C83D066BCDD5AC74854FAE6F798EF5B49002B5AEC683BED9A2B4CDE2BEE55"
+  },
+  {
+    "file": "p02-hops-01.jpg",
+    "title": "酒花 01",
+    "width": 1232,
+    "height": 928,
+    "sha256": "A14B478B7A871AD59A0DD12790469B93B453C837E4B344231DA147480F52CD78"
+  },
+  {
+    "file": "p02-hops-02.jpg",
+    "title": "酒花 02",
+    "width": 1232,
+    "height": 928,
+    "sha256": "2F7E23B1A736171CFB7AB4A8125C7C80C78CD73412086E9FED085A7FE3B5CB89"
+  },
+  {
+    "file": "p02-hops-03.jpg",
+    "title": "酒花 03",
+    "width": 1232,
+    "height": 928,
+    "sha256": "6B443D4A2A1A69761F6BE4C02D320DCB6FE31043114D0A9DB2FEA9D1604D6002"
+  },
+  {
+    "file": "p02-hops-04.jpg",
+    "title": "酒花 04",
+    "width": 1232,
+    "height": 928,
+    "sha256": "E7851F66587F9A1FC30EC4A11979AD4369CE485478807AF69877232CE2C3EDB4"
+  },
+  {
+    "file": "p03-yeast-01.jpg",
+    "title": "酵母 01",
+    "width": 1232,
+    "height": 928,
+    "sha256": "0910E75D0E5FFD8D6139DDBC923901B233F8FE8F975F8589EF19A7C20020C1F9"
+  },
+  {
+    "file": "p03-yeast-02.jpg",
+    "title": "酵母 02",
+    "width": 1232,
+    "height": 928,
+    "sha256": "787B127FD2992D3B3F4038E2A08FABE9DFC0CF22EDF321D8D3B022B52C19D864"
+  },
+  {
+    "file": "p03-yeast-03.jpg",
+    "title": "酵母 03",
+    "width": 1232,
+    "height": 928,
+    "sha256": "C99E5D406D9234DCA37D324A0114E156368CCD5929BCAA56B372C18298E7350A"
+  },
+  {
+    "file": "p03-yeast-04.jpg",
+    "title": "酵母 04",
+    "width": 1232,
+    "height": 928,
+    "sha256": "478B5E06EA30A8068B524295C051755D4438622A0D7DA625D9EE4F87C73B76E8"
+  },
+  {
+    "file": "p04-fruit-01.jpg",
+    "title": "增味原料 01",
+    "width": 1232,
+    "height": 928,
+    "sha256": "17EAE66C7FD739B979EACD955971CFB30A27DCBB2A54F5EE16801529A4D8CD55"
+  },
+  {
+    "file": "p04-fruit-02.jpg",
+    "title": "增味原料 02",
+    "width": 1232,
+    "height": 928,
+    "sha256": "4D62CBE93360F376B07C6202E4A486468E89A78CEB45C36660BE96B17B95F3B9"
+  },
+  {
+    "file": "p04-fruit-03.jpg",
+    "title": "增味原料 03",
+    "width": 1232,
+    "height": 928,
+    "sha256": "278A69E3497A061A1C691277AFDA1D89A734B6E0E00E6D367908EEBD8EECA3FF"
+  },
+  {
+    "file": "p04-fruit-04.jpg",
+    "title": "增味原料 04",
+    "width": 1232,
+    "height": 928,
+    "sha256": "F975A167617A4E90DD1AD6B944F4D17DBFDB7FD4FC15B39C13CFAF635034A738"
+  }
+]

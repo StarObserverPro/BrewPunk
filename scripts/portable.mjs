@@ -7,11 +7,23 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (p) => readFile(path.join(root, p), "utf8");
 const id = (p) => "brewpunk/" + path.posix.normalize(p);
 const imports = {};
+const assets = new Map();
+for (const directory of ["assets/kitchen", "assets/taproom", "assets/packaging", "assets/workshop", "assets/ingredients"]) {
+  for (const name of await readdir(path.join(root, directory))) {
+    if (!/\.(png|jpg)$/.test(name)) continue;
+    const file = directory + "/" + name;
+    const type = name.endsWith(".png") ? "png" : "jpeg";
+    assets.set(file, "data:image/" + type + ";base64," + (await readFile(path.join(root, file))).toString("base64"));
+  }
+}
 for (const dir of ["ui", "core", "vendor/brewlab"]) {
   for (const name of await readdir(path.join(root, dir))) {
     if (!name.endsWith(".js")) continue;
     const file = dir + "/" + name;
     const code = (await read(file)).replace(
+      /(["'])(assets\/(?:kitchen|taproom|packaging|workshop|ingredients)\/[^"']+\.(?:png|jpg))\1/g,
+      (match, quote, asset) => JSON.stringify(assets.get(asset) ?? asset),
+    ).replace(
       /(\bfrom\s*|\bimport\s*)(['"])(\.\.?\/[^'"]+)\2/g,
       (_, prefix, quote, spec) =>
         prefix + quote + id(path.posix.join(dir, spec)) + quote,

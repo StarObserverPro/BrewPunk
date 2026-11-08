@@ -1,0 +1,72 @@
+[
+  {
+    "id": "B01-keg-master",
+    "title": "钢桶母版",
+    "prompt": "Repaint keg photobash, preserve two posts and oval lid, unify light."
+  },
+  {
+    "id": "B03-keg-filling",
+    "title": "发酵罐灌入钢桶",
+    "prompt": "Create one landscape 4:3 production illustration. Reference 1 fixes keg design and painterly workshop style; reference 2 if present fixes taproom architecture and light. Preserve right fermenter and left keg. Keg sealed oval lid. One clear beer-filled hose from fermenter's lower blue valve connects visibly to black liquid ball-lock disconnect on keg liquid post. Keg other gas post has a separate short vent tube into a small sanitizer jar. Gravity transfer, place receiving keg on lower rolling stand beside counter. No pump, no loose hose entering solid lid. Maintain restrained impressionist digital oil brushwork, coherent contact shadows, realistic topology over exact proportions. No text, no logos, no collage borders."
+  },
+  {
+    "id": "B04-keg-sealed",
+    "title": "封桶贴签",
+    "prompt": "Create one landscape 4:3 production illustration. Reference 1 fixes keg design and painterly workshop style; reference 2 if present fixes taproom architecture and light. Only the same sealed serving keg on clean counter, no fermenter. Oval lid latched, two bare posts, small blank cream batch tag tied to handle, no writing. Quiet uncluttered composition. Maintain restrained impressionist digital oil brushwork, coherent contact shadows, realistic topology over exact proportions. No text, no logos, no collage borders."
+  },
+  {
+    "id": "B05-keg-coldstorage",
+    "title": "钢桶冷藏",
+    "prompt": "Create one landscape 4:3 production illustration. Reference 1 fixes keg design and painterly workshop style; reference 2 if present fixes taproom architecture and light. Same keg type, three steel kegs standing upright inside open modern undercounter refrigerated cabinet, pale gray workshop wall, oak counter edge. Cool gray cabinet interior, soft daylight upper left, no frost, no floating pipes. Front keg clearly visible. Maintain restrained impressionist digital oil brushwork, coherent contact shadows, realistic topology over exact proportions. No text, no logos, no collage borders."
+  },
+  {
+    "id": "B06-keg-connection",
+    "title": "换桶接管",
+    "prompt": "Create one landscape 4:3 production illustration. Reference 1 fixes keg design and painterly workshop style; reference 2 if present fixes taproom architecture and light. Close viewpoint inside open refrigerated serving cabinet under the existing taproom oak bar. Same black-rim Cornelius keg. Cropped hands snap gray gas ball-lock connector onto one top post; black liquid connector already on the other. Two distinct hoses: gas toward regulator on a CO2 cylinder beside cabinet, liquid rises behind bar toward taps outside crop. Warm upper-left room lamp, restrained cool cabinet shadows. Clear connections, few objects. Maintain restrained impressionist digital oil brushwork, coherent contact shadows, realistic topology over exact proportions. No text, no logos, no collage borders."
+  },
+  {
+    "id": "B07-tap-pour",
+    "title": "酒头正常出酒",
+    "prompt": "Create one landscape 4:3 production illustration. Reference 1 fixes keg design and painterly workshop style; reference 2 if present fixes taproom architecture and light. Close view of the existing taproom stainless wall tap panel and oak counter, warm upper-left lamp. One hand tilts a single clear glass under one open faucet, continuous thin golden beer stream, modest white foam cap, drip tray below. Other five taps remain on same horizontal panel in soft background. Exactly six taps in total, no added tower. Restrained impressionist oil painting matching supplied taproom. Maintain restrained impressionist digital oil brushwork, coherent contact shadows, realistic topology over exact proportions. No text, no logos, no collage borders."
+  },
+  {
+    "id": "B09-bottle-capping",
+    "title": "玻璃瓶压盖",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Repaint photobash reference 1, keeping real red bench capper topology; remove large kettle and replace green branded bottle with one plain amber bottle matching reference 2. Cropped hand pulls capper lever down, crimping crown cap onto bottle under capping bell. A bowl with few caps. Remove all photographic background remnants and logos. Tool firmly on counter. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B10-bottles-finished",
+    "title": "成品瓶归筐",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Replace fermenter and filler with a compact open wood crate containing eight capped amber beer bottles of same shape as reference. Two bottles beside crate, blank small cream labels. Few objects, no branding. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B11-can-filling",
+    "title": "易拉罐灌装",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Replace glass bottles with three plain silver beverage cans. One open can under stainless beer filling wand that descends near its bottom, thin foam at open rim; cropped gloved hand holds wand. Clear hose visibly leads to lower fermenter valve. Two other empty open cans nearby. Cans opaque. Simple practical tools. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B12-can-seaming",
+    "title": "易拉罐卷封",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Repaint photobash reference 1. Remove large kettle. Preserve compact dark gray benchtop can seamer topology, upper chuck and round lift platform. One silver beer can with loose lid sits raised firmly between lower platform and upper chuck in working contact. Cropped hand on side operating control. Two finished cans nearby. Erase logos. Soften cutout edges into painting, match lighting and contact shadow. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B13-cans-finished",
+    "title": "成品罐组",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Replace fermenter and bottles with six plain silver finished beer cans on clean steel counter, all same size, sealed pull-tab lids clearly visible, small blank cream paper bands. Simple triangular group, few objects. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B14-bottles-coldstorage",
+    "title": "瓶罐冷藏",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Use open refrigerated cabinet from reference 1, same daylight and oak edge. Replace three kegs with two shelves: compact tray of capped amber bottles below, silver sealed beer cans above. Leave breathing room, plain blank small labels. No frost. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B02-keg-cleaning-v2",
+    "title": "钢桶清洗修订",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. Only one serving keg beside sink. REMOVE fermenter completely. Keep keg steel top intact, two posts welded onto steel shoulder; open ONLY small central oval lid aperture between posts. Removed SMALL oval lid rests on tray. Cropped gloved hand directs rinse wand into small oval aperture. Do not remove whole circular top. No additional objects. No text, no collage, no logos. Few clearly readable objects."
+  },
+  {
+    "id": "B08-empty-keg-v2",
+    "title": "空桶回收修订",
+    "prompt": "One landscape 4:3 illustration, same restrained impressionist digital oil painting as references. Modern serious homebrew room, gray wall, stainless counter, small oak shelf, coherent soft daylight upper left, warm broad steel reflections and cool gray shadows. REMOVE fermenter completely. One serving keg inverted on draining rack beside sink, its black handles now at bottom and black rubber foot ring at top. Small oval removed lid on tray with a brush and cloth. Keg steel body intact, no separate huge vessel. Simple empty keg draining scene. No text, no collage, no logos. Few clearly readable objects."
+  }
+]

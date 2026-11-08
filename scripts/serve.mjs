@@ -4,12 +4,15 @@ import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const port = Number(process.env.PORT ?? 4173);
+const port = Number(process.env.PORT ?? 4189);
 const types = {
   ".html": "text/html",
   ".js": "text/javascript",
   ".css": "text/css",
   ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".webp": "image/webp",
 };
 
 createServer(async (request, response) => {
@@ -26,7 +29,7 @@ createServer(async (request, response) => {
     const content = await readFile(target);
     response
       .writeHead(200, {
-        "Content-Type": type + "; charset=utf-8",
+        "Content-Type": type.startsWith("image/") ? type : type + "; charset=utf-8",
         "Cache-Control": "no-store",
       })
       .end(content);

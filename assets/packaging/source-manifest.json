@@ -1,0 +1,114 @@
+[
+  {
+    "height": 1086,
+    "title": "钢桶母版",
+    "selected": true,
+    "sha256": "E0822D86475FBD015C57799E8AA180720236DC6EF64352FCBAD51E4CB0B241A7",
+    "file": "B01-keg-master.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "钢桶清洗修订",
+    "selected": true,
+    "sha256": "DA9C6481BBEED5CB0952F1992AD56A24E659D12DA41779211F574A71F2948C8E",
+    "file": "B02-keg-cleaning-v2.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "发酵罐灌入钢桶",
+    "selected": true,
+    "sha256": "7E3E297076D653FB821510A57B5DDFA13F219CF27361D00EDD93637DF2DD6217",
+    "file": "B03-keg-filling.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "封桶贴签",
+    "selected": true,
+    "sha256": "8EE4684718B33B9E94307A3C73B69527D8EF64F77C6A24FDDDBCB002B2B48779",
+    "file": "B04-keg-sealed.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "钢桶冷藏",
+    "selected": true,
+    "sha256": "5C31D1307F3EF317371A63FF9566FB827C85EF2E4453D2E378C7F511B5055782",
+    "file": "B05-keg-coldstorage.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "换桶接管",
+    "selected": true,
+    "sha256": "7527AC84EA3719A22616B349464BFCE8728FDE65E357219A8E0D22C941976018",
+    "file": "B06-keg-connection.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "酒头正常出酒",
+    "selected": true,
+    "sha256": "19BF7F2B051B582BF57B13A4D8477F775B323A370CCFC68B5C694EC7E9DE987F",
+    "file": "B07-tap-pour.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "空桶回收修订",
+    "selected": true,
+    "sha256": "DCD453EC56C8C7AF6F65785EBA851EF778B5434AC33EBF73008EF1C5A63DC008",
+    "file": "B08-empty-keg-v2.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "玻璃瓶压盖",
+    "selected": true,
+    "sha256": "30CCA0C121EC8C57E9FCFF0D734BBDAC2B326E62C4B2F14A72D22657357FD81D",
+    "file": "B09-bottle-capping.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "成品瓶归筐",
+    "selected": true,
+    "sha256": "3964D90AE6D72E3071B2F024AB49383C8E170BB7DDFD8F25A8A840675F20FFDF",
+    "file": "B10-bottles-finished.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "易拉罐灌装",
+    "selected": true,
+    "sha256": "B2DEED3D498D6E53A1CE416E1EE7395C87CF6B98D405920D4282955798FF28C8",
+    "file": "B11-can-filling.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "易拉罐卷封",
+    "selected": true,
+    "sha256": "C141DA7433188A6A8D3A837E156DBBFB0DACC855A66347D362B3A8B6DDEBE692",
+    "file": "B12-can-seaming.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "成品罐组",
+    "selected": true,
+    "sha256": "0C6DFBBD086F4CB0DFD5B57B6F08EB238CEC5F3DA94D5D34997B4C94419392B0",
+    "file": "B13-cans-finished.png",
+    "width": 1448
+  },
+  {
+    "height": 1086,
+    "title": "瓶罐冷藏",
+    "selected": true,
+    "sha256": "8142152BCC96CEDC897172E9A3146AC914FD276E5A2384C0435B92CC0E8DB632",
+    "file": "B14-bottles-coldstorage.png",
+    "width": 1448
+  }
+]

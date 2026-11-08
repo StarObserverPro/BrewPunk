@@ -1,0 +1,26 @@
+[
+  {
+    "height": 1089,
+    "sha256": "4E6E08735164A5A38C816E13A44665C82DCF4098A9B24D9C35DACE28468EF672",
+    "width": 1445,
+    "file": "kitchen-day.png"
+  },
+  {
+    "height": 1089,
+    "sha256": "1E1F613F7D3383A3E72A2C7125977987D69E0AE242C7F10473830C713E7F69F8",
+    "width": 1445,
+    "file": "fermentation-day.png"
+  },
+  {
+    "height": 1089,
+    "sha256": "78ACFC81FFFB4F0FE42305F0C61C90E7E7EC6CB646CF843D5248F26CFC2A66AB",
+    "width": 1445,
+    "file": "kitchen-night.png"
+  },
+  {
+    "height": 1089,
+    "sha256": "A070EE539E86F9553DB2DC301397A366918CB1FC4B8533B0845EBD21981FB4B5",
+    "width": 1445,
+    "file": "fermentation-night.png"
+  }
+]

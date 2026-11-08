@@ -54,5 +54,18 @@ export function processEvents(recipe, seed, controls) {
     () => "转移中管路吸进一段空气，封装后香气会衰退得更快。",
     "exposure",
   );
+  if (recipe.processVersion >= 2) {
+    roll("mash-cool", "mash", 0.14, 2, 5, (x) => `糖化途中温度比设定低了 ${x.toFixed(1)} °C。`, "°C");
+    roll("filter-slow", "mash", 0.12, 0.025, 0.065, () => "过滤的液线变细，滤床排液变慢。", "fraction");
+    roll("boil-over", "mash", 0.13, 0.02, 0.055, () => "泡沫顶到锅沿，一点麦汁溢上了台面。", "fraction");
+    roll("pitch-warm", "mash", 0.12, 2, 5, (x) => `冷却还差一点，温度比投酵目标高 ${x.toFixed(1)} °C。`, "°C");
+    roll("airlock-foam", "fermentation", 0.13, 0.004, 0.014, () => "泡沫爬进了气锁，排气开始断断续续。", "fraction");
+    if (recipe.hops.some((hop) => hop.use === "dryHop" && hop.grams > 0))
+      roll("dryhop-contact", "fermentation", 0.12, 0.16, 0.32, () => "干投袋的上半截没有充分浸润。", "fraction");
+    if (recipe.barrelDays >= 30)
+      roll("barrel-strong", "adjunct", 0.2, 0.6, 0.6, () => "中途取样，木香已经很明显了。", "fraction");
+    if (recipe.ageDays >= 2)
+      roll("storage-warm", "storage", 0.13, 6, 11, (x) => `储存角落升温，比原先高 ${x.toFixed(1)} °C。`, "°C");
+  }
   return events;
 }
