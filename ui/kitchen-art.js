@@ -1,3 +1,4 @@
+import {focalStyle} from "./framing.js";
 import { packagingShots, supplementalShots, packagingShot } from "./packaging-art.js";
 export const kitchenShots = {
   ...packagingShots, ...supplementalShots,
@@ -25,15 +26,14 @@ export function shotFor(art, packaging) {
 export function kitchenPlate(shot, temperature) {
   const asset = kitchenShots[shot];
   if (!asset) return "";
-  if (asset.width || Object.hasOwn(supplementalShots, shot)) return '<img class="kitchen-photo" src="' + asset.src + '" alt="' + asset.label + '" decoding="async">';
+  if (asset.width || Object.hasOwn(supplementalShots, shot)) return '<img class="kitchen-photo" style="'+focalStyle(shot)+'" src="' + asset.src + '" alt="' + asset.label + '" decoding="async">';
   const ferment = ["pitching", "active", "night", "warm", "airlock", "blowoff", "sampling", "bottling"].includes(shot);
   const reading = temperature === "—" ? "待用" : temperature + "°";
   // The painted gauges are covered in the same coordinate system as the art.
   // Changing the viewport crops both the illustration and live reading together.
-  const gauge = ferment
-    ? '<rect x="746" y="690" width="57" height="29" rx="2" fill="#d4d6b6"/><text x="774" y="712" text-anchor="middle" font-size="20" fill="#25382a">' + reading + '</text>'
-    : '<circle cx="733" cy="678" r="42" fill="#dedecb" stroke="#5e695d" stroke-width="4"/><text x="733" y="685" text-anchor="middle" font-size="22" fill="#25382a">' + reading + '</text>';
+  const x=ferment?774:733,y=ferment?701:678;
+  const gauge='<g transform="translate('+x+' '+y+')" stroke="#52412c" stroke-linecap="round" stroke-linejoin="round"><path d="M10 -7Q32 -12 54 -46m-43 39 7-12m-7 12 15 1" stroke-width="5.2" fill="none"/><path d="M46 -91q30 2 56 -3l62 1-2 15 4 27-31 3-54 1-35 2 2-20z" fill="#f4e6badf" stroke-width="4"/><path d="m49 -87 24 -3m72 44 17 -5m-143 41 18-10" fill="none" stroke-width="2.3"/><text transform="rotate(-4 105 -58) skewX(-3)" font-weight="bold" x="105" y="-58" text-anchor="middle" font-family="BrewPen,KaiTi,serif" font-size="30" fill="#403623" stroke="none">'+reading+'</text></g>';
   const alignment = ["preparation", "bottling"].includes(shot) ? "xMinYMid" : "xMidYMid";
-  return '<svg class="kitchen-photo" viewBox="0 0 1445 1089" preserveAspectRatio="' + alignment + ' slice" role="img" aria-label="' + asset.label +
+  return '<svg data-subject="'+shot+'" class="kitchen-photo" viewBox="0 0 1445 1089" preserveAspectRatio="' + alignment + ' slice" role="img" aria-label="' + asset.label +
     '"><image href="' + asset.src + '" width="1445" height="1089"/>' + gauge + "</svg>";
 }

@@ -1,3 +1,5 @@
+import {cropPlate} from "./framing.js";
+import {sessionOf,linesFor} from "./service.js";
 import { materialArt } from "./adjunct-art.js";
 import { adjudicateDraft, voicePosts } from "./ai-client.js";
 import { compareAdjunct } from "../core/adjunct-comparison.js";
@@ -5,7 +7,7 @@ import { offlineProfile } from "../core/adjuncts.js";
 import { taste, STYLE_OPTIONS } from "../core/tasting.js";
 import { sampleBrews } from "../core/brew.js";
 import { sampleTastings, packageCondition } from "../core/taproom.js";
-import { sketch } from "./art.js";
+import { wort, sketch } from "./art.js";
 import { nightFeed, feedProgress, readingDelay } from "./live-feed.js";
 import { incidents, incidentFrames, resetResponses } from "./incidents.js";
 import { taproomPlate, taproomShot, shots } from "./taproom-art.js";
@@ -122,12 +124,13 @@ function finishStory() {
   const end = state.story.ending;
   state.story = null;
   if (end.step !== undefined) state.draft.step = end.step;
-  if (end.inspected) state.draft.inspected = true;
+  if (end.inspected) {state.draft.inspected = true;state.draft.step=3;}
   if (end.tasted) state.draft.tasted = true;
   offerServiceIncident();
 }
 function offerServiceIncident() {
-  if (state.view !== "room" || state.story) return;
+  if (state.view !== "room" || state.story || sessionOf(state).closed) return;
+  for(const other of state.taps.slice(0,3))if(other && other.slot!==state.selected)supplyNight(other);
   const tap = state.taps[state.selected];
   if (!tap || batchOf(tap.d).recipe.processVersion < 2) return;
   if (tap.serviceChoices?.[tap.night]?.chillLine !== undefined) {supplyNight(tap);return;}
@@ -162,9 +165,10 @@ function chooseIncident(rescue) {
 function advance(skip = false) {
   if (!state.story) return;
   if (typing && !skip) { revealText(); return; }
+  const from=state.story.index;
   do {
     const f = state.story.frames[state.story.index];
-    if (f.choice) return;
+    if (f.choice || (skip && addAt(f) && state.story.index!==from)) return;
     logCurrent();
     if (state.story.index + 1 === state.story.frames.length) {
       finishStory();
@@ -200,7 +204,7 @@ function fermentRest(draft) {
   return [
     frame("清早再来，光已经落在罐盖上。翻开桶签，看看今天要做什么。", { art: "ferment", shot: "fermentation-day", calendar: true }),
     ...incidentFrames(draft, ["airlock-foam"]),
-    ...dryHops.map((hop) => frame("第 " + hop.day + " 天，按桶签上的日程投入 " + hop.grams.toFixed(1) + " g " + (hops[hop.hopId] || hop.hopId) + "，接触 " + hop.time + " 天。", { art: "ferment", shot: "active", take: "桶边干投" })),
+    ...dryHops.map((hop) => frame("第 " + hop.day + " 天，按桶签上的日程投入 " + hop.grams.toFixed(1) + " g " + (hops[hop.hopId] || hop.hopId) + "，接触 " + hop.time + " 天。", { art: "ferment", shot: "active", brewDay:hop.day,take: "桶边干投" })),
     ...incidentFrames(draft, ["dryhop-contact"]),
     ...acidFrames(batch),
   ];
@@ -293,8 +297,12 @@ function sceneHTML(context) {
     shot === "mashing" ? (recipe.mash.steps[0].tempC - mashDrop).toFixed(1) :
     ["cooling", "pitching"].includes(shot) ? (recipe.fermentation.steps[0].tempC + (pitch?.effectiveMagnitude || 0)).toFixed(1) :
     art === "ferment" ? (recipe.fermentation.steps[0].tempC + (delta || 0)).toFixed(1) : "—";
-  const picture = art === "tap" && !f?.shot ? taproomPlate(roomShot(context.t, batch, f)) : kitchenPlate(shot, temperature);
+  const picture = art==="taste" ? '<svg data-subject="first-cup" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice" role="img" aria-label="窗边的第一杯"><image href="assets/kitchen/first-cup.png" width="1536" height="1024"/><path d="M653 284Q766 278 880 284C896 338 920 424 834 472Q771 500 704 473C625 432 628 365 653 284Z" fill="'+wort(batch.metrics.srm)+'" opacity="'+Math.min(.89,.09+batch.metrics.srm*.022)+'" style="mix-blend-mode:multiply"/></svg>' : art === "tap" && !f?.shot ? taproomPlate(roomShot(context.t, batch, f)) : kitchenPlate(shot, temperature);
   if (picture) prop = "";
+  if(f?.detail==="filter")prop='<figure class="process-slip"><svg viewBox="0 0 156 100" role="img" aria-label="麦汁穿过滤床，沿管流进量杯"><g stroke="#554431" stroke-width="4" fill="none" stroke-linejoin="round" stroke-linecap="round"><path fill="#ead29c" d="m9 12 70 1-7 36-18 13-2 12-14 1-2-14-20-17z"/><path d="m19 33 50 1m-44 8 40 1m-20 33 1 9 43-1 4-26"/><path fill="#d79a4c" d="m96 52 43-2-4 39-34-1z"/><path d="m120 60 10-1m-11 10 9-1"/></g></svg><figcaption>慢慢滤，别搅动麦床</figcaption></figure>';
+  if(f?.take==="桶边干投")prop+='<div class="process-slip">'+ingredientsPage(["hops"],d.seed)+'</div>';
+  if(art==="recipe" && f && !f.choice)prop+='<div class="grain-shot">'+maltTray(recipe)+'</div>';
+  if (art === "adjunct" && !recipe.customAdjunct && !f?.calendar)prop+='<figure class="process-slip">'+ingredientsPage(["fruit"],d.seed)+'</figure>';
   if (art === "adjunct" && recipe.customAdjunct && !f?.calendar)
     prop += '<figure class="material-inset">' + materialArt(recipe.customAdjunct.profile.tone,recipe.customAdjunct.stage) + '</figure>';
   return '<section class="scene ' + (picture ? "painted " : "") + (f?.take ? "cut-in " : "") + (f?.calendar ? "calendar" : "") + '" aria-label="' + escape(art === "tap" ? "六头酒屋" : locations[d.step]) + '"><div class="art">' +
@@ -302,13 +310,14 @@ function sceneHTML(context) {
     '<span class="batch-tag">' + escape(beerName(d)) + "</span>" + prop + "</div>" +
     (f?.take ? '<div class="take-title">' + escape(f.take) + "</div>" : "") + "</section>";
 }
+function addAt(f){return !f?.incidentResult && !f?.choice && ({boiling:"boil",pitching:"pitch","fermentation-day":"active",active:"active"})[f?.shot];}
 function readerHTML() {
   const f = currentFrame();
   const options = f.choice === "incident" ? incidents[f.eventId] : f.choice === "warm" ? { yes: "换上冰袋", no: "先照常观察" } : null;
   const choices = options ? '<div class="story-choices">' + (timedFrame(f) ? clockArt : '') +
     btn(options.yes, f.choice === "warm" ? "warm-cool" : "incident-yes") +
     btn(options.no, f.choice === "warm" ? "warm-watch" : "incident-no") + "</div>" : "";
-  return '<section class="story-area" aria-label="过场">' + choices + '<div class="readbox">' +
+  return (addAt(f)?'<aside class="adjunct-sign">'+btn("等会！咱加点这个…","add-now","main-action")+'</aside>':"")+'<section class="story-area" aria-label="过场">' + choices + '<div class="readbox">' +
     (f.speaker ? '<p class="speaker">' + escape(f.speaker) + "</p>" : "") +
     '<p class="story-text" id="story-text" aria-live="polite">' + escape(f.text) + '</p><div class="reader-actions">' +
     (f.choice ? "" : btn("快进至选择或结果", "skip", "subtle") + btn("继续 ▷", "continue", "continue")) +
@@ -316,66 +325,26 @@ function readerHTML() {
 }
 function mainAction() {
   if (state.view === "room") {
-    const t = state.taps[state.selected];
-    if (!t) return '<div class="action-area">' + btn("去厨房酿一桶", "kitchen", "main-action") + "</div>";
-    const finished = nightStatus(t).finished;
-    const paused = t.feed?.night === t.night && t.feed.paused;
-    return '<div class="action-area">' + btn(finished ? "收起这张酒牌" : "再开一晚", finished ? "archive" : "next-night", "main-action") +
-      btn(paused ? "继续留言" : "暂停留言", "feed-pause", "subtle", 'id="feed-pause"') +
-      btn("翻看留言", "read-night", "subtle") + "</div>";
+    const svc=sessionOf(state);
+    return '<div class="action-area service-actions">'+(svc.closed?btn("回顾当晚","review")+btn("次日厨房","morning")+btn("下一晚营业","new-service"):btn("打烊","close-service","book-toggle"))+'</div>';
   }
   const d = state.draft;
   const label = ["翻开酒单", "看看锅边的工艺单", d.inspected ? "去增味台" : "巡一巡发酵桶", "想添点什么", "把这一锅装起来", d.tasted ? "送去楼下酒屋" : "尝第一杯"][d.step];
+  if(d.step===3)return '<div class="adjunct-sign">'+btn("等会！咱加点这个…","add-now","main-action")+'</div><div class="action-area">'+btn(d.addedAt?"保留已加原料，去分装":"照原方，去分装","plain","subtle")+'</div>';
   return '<div class="action-area">' + btn(opening === d ? "正在尝这杯…" : label, "main", "main-action", opening === d ? "disabled" : "") +
     (d.step === 5 && d.tasted ? btn("翻看开杯笔记", "tasting", "subtle") : "") + "</div>";
 }
 function tapStrip() {
-  return '<div class="tap-strip" aria-label="六席酒屋">' + state.taps.map((t, i) =>
-    '<button class="tap" data-act="tap" data-slot="' + i + '" aria-pressed="' + (i === state.selected) + '"><small>第 ' + (i + 1) + " 席</small><span>" + escape(t ? beerName(t.d) : "空席") + "</span></button>").join("") + "</div>";
+  const svc=sessionOf(state);if(svc.closed)return "";
+  return '<nav class="tap-strip" aria-label="按酒头筛选">'+[0,1,2,3,4,5].map(i=>btn((i+1)+" · "+(i<3?(state.taps[i]?beerName(state.taps[i].d):"待上酒"):svc.house[i-3]),"filter","tap","data-slot="+i+" aria-pressed="+(svc.filter===i))).join("")+'</nav>';
 }
-function feedHTML() {
-  if (state.view !== "room" || state.story || !state.taps[state.selected]) return "";
-  return '<aside class="live-feed" aria-label="桌边实时留言"><div class="live-window"><div class="live-track" id="live-track" role="log" aria-live="polite" aria-relevant="additions" aria-atomic="false"></div></div><p class="live-status" id="live-status"></p></aside>';
-}
-function feedEntryHTML(entry) {
-  return '<article class="live-message ' + entry.kind + '" data-entry="' + escape(entry.id) + '"><span class="live-name">' +
-    escape(entry.name) + '</span><span class="live-copy">' + escape(entry.text) + "</span></article>";
-}
-function mountFeed() {
-  const track = document.querySelector("#live-track");
-  const tap = state.taps[state.selected];
-  if (!track || !tap) return;
-  const entries = nightFeed(delivery(tap).night, tap.night);
-  const progress = feedProgress(tap, entries.length);
-  tap.feed = progress;
-  let shown = progress.shown;
-
-  track.innerHTML = entries.slice(Math.max(0, shown - 8), shown).map(feedEntryHTML).join("");
-  const status = document.querySelector("#live-status");
-  function schedule() {
-    status.textContent = progress.paused ? "留言已暂停" : shown === entries.length ? "今晚的话，先记到这里。" : "";
-    if (progress.paused || shown >= entries.length) return;
-    feedTimer = setTimeout(() => {
-      if (!track.isConnected || document.hidden || state.overlay || state.story) { schedule(); return; }
-      const oldHeight = track.getBoundingClientRect().height;
-      track.insertAdjacentHTML("beforeend", feedEntryHTML(entries[shown]));
-      shown++;
-      progress.shown = shown;
-      roomArrived = true;
-
-      save();
-      // Bottom anchoring moves older messages up by exactly the new entry's height.
-      const rise = track.getBoundingClientRect().height - oldHeight;
-      if (!reducedMotion()) {
-        feedAnimation = track.animate([{ transform: "translateY(" + rise + "px)" }, { transform: "translateY(0)" }],
-          { duration: 2200, easing: "ease-in-out" });
-        track.lastElementChild.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1300 });
-      }
-      while (track.children.length > 8) track.firstElementChild.remove();
-      schedule();
-    }, readingDelay(entries[Math.max(0, shown - 1)].text));
-  }
-  schedule();
+function feedHTML(){if(state.view!=="room"||state.story||sessionOf(state).closed)return "";return '<aside class="live-feed"><div class="live-window"><div class="live-track" id="live-track" role="log"></div></div><p class="live-status" id="live-status"></p></aside>';}
+function feedEntryHTML(e){return '<article class="live-message" data-slot="'+e.slot+'"><b class="live-name">'+escape(e.beer+" · "+e.name)+'</b><span class="live-copy">'+escape(e.text)+'</span>'+(e.reply&&!sessionOf(state).replies[e.id]?btn("接一句","reply","subtle",'data-id="'+escape(e.id)+'"'):"")+'</article>';}
+function mountFeed(){
+ const track=app.querySelector("#live-track");if(!track)return;
+ const svc=sessionOf(state),all=linesFor(state); svc.cursor=Math.min(svc.cursor,all.length);
+ const show=()=>{const visible=all.slice(0,svc.cursor).filter(e=>svc.filter==null||svc.filter===e.slot);track.innerHTML=visible.slice(-8).map(feedEntryHTML).join("");app.querySelector("#live-status").textContent=svc.filter==null?"全屋 · 第 "+svc.day+" 晚":"第 "+(svc.filter+1)+" 头 · 再点一次听全屋";};
+ show();function tick(){feedTimer=setTimeout(()=>{if(!track.isConnected)return;if(state.overlay||document.hidden){tick();return;}if(svc.cursor>=all.length){svc.closed=true;save();render();return;}const before=track.getBoundingClientRect().height;svc.cursor++;show();if(!reducedMotion())track.animate([{transform:"translateY("+Math.max(0,track.getBoundingClientRect().height-before)+"px)"},{transform:"none"}],{duration:1700});save();tick();},Math.max(7000,readingDelay(all[svc.cursor-1]?.text||"")));}tick();
 }
 function fadeSnapshot() {
   transitionGhost?.remove();
@@ -410,6 +379,8 @@ function crossfade(ghost) {
     }
   });
 }
+const grainImages=["assets/ingredients/grain-pale.png","assets/ingredients/grain-gold.png","assets/ingredients/grain-amber.png","assets/ingredients/grain-dark.png"];
+function maltTray(r){return '<div class="malt-tray">'+r.fermentables.map(g=>{const id=g.fermentableId,n=/roast|black|chocolate/.test(id)?3:/crystal|cara/.test(id)?2:/munich|vienna|otter|pale-ale/.test(id)?1:0;return '<figure><img src="'+grainImages[n]+'" alt=""><figcaption>'+escape(malts[id]||({"flaked-oats":"燕麦片","wheat-malt":"小麦麦芽","roasted-barley":"烘烤大麦","black-malt":"黑麦芽",chocolate:"巧克力麦芽"}[id])||id)+' · '+g.weightKg.toFixed(2)+' kg</figcaption></figure>';}).join("")+'</div>';}
 function formHTML(stage, d) {
   const o = d.options, c = d.choices;
   // Preserve temporarily invalid edits across refresh without asking the engine
@@ -420,16 +391,16 @@ function formHTML(stage, d) {
   const dry = r.hops.find((h) => h.use === "dryHop");
   const fields = [
     () => '<div class="radio-cards">' + Object.entries(styles).map(([id, name]) =>
-      '<label class="radio-card"><input type="radio" name="preset" value="' + id + '" ' + (d.preset === id ? "checked" : "") + ">" + name + "</label>").join("") + '</div><div class="fields">' +
+      '<label class="radio-card"><input required type="radio" name="preset" value="' + id + '" ' + (d.picked && d.preset === id ? "checked" : "") + ">" + name + "</label>").join("") + '</div><div class="fields">' +
       select("这一锅的量", "o.volumeL", { 10: "10 L", 20: "20 L", 25: "25 L", 30: "30 L", 40: "40 L", 45: "45 L", 50: "50 L" }, o.volumeL) +
       field("写个酒名", '<input name="name" maxlength="32" placeholder="' + escape(styles[d.preset]) + '" value="' + escape(d.name) + '">') +
-      '</div><details><summary>翻到配料页</summary><div class="fields">' +
+      '</div>',
+    () => '<h3>这桶的配料 · '+r.batchVolumeL+' L</h3>'+maltTray(r)+'<div class="fields">'+
       select("基础麦芽", "o.maltId", { ...inherited, ...malts }, o.maltId ?? "") +
       select("水质", "o.waterId", { ...inherited, ...waters }, o.waterId ?? "") +
       select("酵母", "o.yeastId", { ...inherited, ...yeasts }, o.yeastId ?? "") +
       select("拼配麦芽", "o.specialtyMaltId", { "": "沿用底方", "wheat-malt": "小麦麦芽", "flaked-oats": "燕麦片", "roasted-barley": "烘烤大麦", "black-malt": "黑麦芽", chocolate: "巧克力麦芽" }, o.specialtyMaltId ?? "") +
-      numeric("置换基础麦芽 · %", "o.specialtyPct", o.specialtyPct ?? 5, 0, 30) + "</div></details>",
-    () => '<div class="fields">' +
+      numeric("置换基础麦芽 · %", "o.specialtyPct", o.specialtyPct ?? 5, 0, 30) + '</div>'+'<div class="dose-sheet">'+ingredientsPage(["hops","yeast"],d.seed)+'<p>'+r.hops.map(h=>escape(hops[h.hopId]||h.hopId)+" "+Number(h.grams.toFixed(2))+" g").join(" ／ ")+'</p><p>'+escape(yeasts[r.fermentation.yeastId]||r.fermentation.yeastId)+' · 干酵母备料估算 '+Number((r.batchVolumeL*(r.fermentation.pitchRate==="over"?1:.6)).toFixed(1))+' g</p></div><div class="fields">'+
       numeric("糖化温度 · °C", "o.mashC", o.mashC ?? r.mash.steps[0].tempC, 55, 75) +
       numeric("主发酵设定 · °C", "o.fermentC", o.fermentC ?? r.fermentation.steps[0].tempC, 5, 40) +
       yesno("投料", "c.precision", "逐一称重", "凭手感", c.precision) +
@@ -440,22 +411,22 @@ function formHTML(stage, d) {
       numeric("干投总量 · g", "o.dryHopGrams", o.dryHopGrams ?? r.hops.filter((h) => h.use === "dryHop").reduce((s, h) => s + h.grams, 0), 0, r.batchVolumeL * 30) +
       numeric("第几天干投", "o.dryHopDay", o.dryHopDay ?? dry?.day ?? 5, 0, 60) +
       select("另加一款酒花", "o.extraHopId", { "": "不加", ...hops }, o.extraHopId ?? "") +
-      numeric("加投量 · g", "o.extraHopGrams", o.extraHopGrams ?? 20, 0, r.batchVolumeL * 30) +
+      numeric("加投量 · g", "o.extraHopGrams", o.extraHopGrams ?? r.batchVolumeL*.8, 0, r.batchVolumeL * 30) +
       select("加投时机", "o.extraHopUse", { boil: "煮沸", whirlpool: "回旋沉淀", dryHop: "干投" }, o.extraHopUse ?? "whirlpool") +
       numeric(o.extraHopUse === "dryHop" ? "接触天数" : "接触分钟", "o.extraHopTime", o.extraHopTime ?? (o.extraHopUse === "dryHop" ? 3 : 15), 0, o.extraHopUse === "dryHop" ? 21 : 120) +
       (o.extraHopUse === "dryHop" ? numeric("第几天加投", "o.extraHopDay", o.extraHopDay ?? 5, 0, 60) : "") +
       "</div></details>",
     () => "",
-    () => '<div class="fields">' + select("放到桶里", "o.adjunct", adjuncts, o.adjunct ?? "none") +
+    () => state.overlay.when ? customForm(o) : '<div class="fields">' + select("放到桶里", "o.adjunct", adjuncts, o.adjunct ?? "none") +
       customForm(o) + select("木材接触与陈放", "o.barrelDays", { 0: "直接分装", 30: "一个月", 180: "半年", 365: "一年", 730: "两年" }, o.barrelDays ?? 0) + "</div>",
     () => '<div class="fields">' + select("这次用什么装", "o.packaging", packs, r.packaging) +
       yesno("转移方式", "c.closedTransfer", "密闭转移", "敞口转移", c.closedTransfer) +
       numeric("储存温度 · °C", "o.storageC", r.storageC, 0, 30) +
       numeric("分装后第几天开喝", "o.ageDays", r.ageDays, 0, 1095) + "</div>",
   ];
-  const illustrations = stage === 0 ? ingredientsPage(["malt","hops","yeast"], d.seed)
+  const illustrations = stage === 0 ? ""
     : stage === 3 && o.adjunct !== "custom" ? ingredientsPage(["fruit"], d.seed) : "";
-  return illustrations + fields[stage]();
+  const controls=fields[stage]();if(stage===0){const cut=controls.indexOf('<div class="fields">');return controls.slice(0,cut)+(d.picked?illustrations+controls.slice(cut):"");}return illustrations+controls;
 }
 function customForm(o) {
   if(o.adjunct!=="custom") return "";
@@ -465,8 +436,8 @@ function customForm(o) {
     field("放点什么",'<input required name="x.name" maxlength="80" placeholder="例如大蒜" value="'+escape(a.name)+'">')+
     field("怎么处理",'<input name="x.preparation" maxlength="120" placeholder="例如拍碎或整瓣烤熟" value="'+escape(a.preparation)+'">')+
     numeric("投料（克）","x.grams",a.grams,0.01,50000)+
-    select("实际投入阶段","x.stage",{boil:"煮沸时",pitch:"接种时",active:"主发酵第 2 天",conditioning:"熟成开始"},a.stage)+
-    '<small class="material-dose">按这锅 '+o.volumeL+' L 折算为 <output id="material-dose">'+(a.grams/o.volumeL).toFixed(2)+'</output> g/L。选前期投料会按那一天重算。</small>';
+    select("实际投入阶段","x.stage",state.overlay.when?{[a.stage]:"就在此时"}:{boil:"煮沸时",pitch:"接种时",active:"主发酵第 2 天",conditioning:"熟成开始"},a.stage)+
+    '<small class="material-dose">按这锅 '+o.volumeL+' L 折算为 <output id="material-dose">'+(a.grams/o.volumeL).toFixed(2)+'</output> g/L。这次确认后即在当前阶段投料。</small>';
 
 }
 function editPanel() {
@@ -476,7 +447,7 @@ function editPanel() {
   return panel(stage === 0 ? "今天酿什么？" : stages[stage], '<p class="foam-note">' + prompts[stage] +
     '</p><form id="edit-form">' + formHTML(stage, draft) +
     '<p id="form-error" class="error" role="alert">' + escape(error || "") + '</p><div class="panel-actions">' +
-    btn("先合上", "close") + '<button class="choice primary" type="submit">' + submits[stage] + "</button></div></form>");
+    btn("先合上", "close") + '<button class="choice primary" type="submit">' + (state.overlay.when?"加进去，接着酿":submits[stage]) + "</button></div></form>");
 }
 function materialReport(a) {
   if (!a) return "";
@@ -507,7 +478,7 @@ function cupHTML(d) {
   const cup = taste(b, cupOptions(d, r, b));
   const a = cup.customAdjunct;
   const comp = compareAdjunct(d, b, cup, cupOptions(d, r, b));
-  const report = materialReport(a);
+  const report = (cup.additions??(a?[a]:[])).map(materialReport).join("");
   return '<h2>' + escape(beerName(d)) + '</h2>'+report+'<div class="metric-row"><span>' + b.metrics.abv.toFixed(1) + "% ABV</span><span>" + Math.round(b.metrics.ibu) + " IBU</span><span>" + Math.round(b.metrics.srm) +
     " SRM</span></div><p>" + escape(d.adjudication?.note || cup.note) + "</p><p class='muted'>" + packs[r.packaging] + " · 分装后第 " + r.ageDays + " 天 · 储温 " + r.storageC + " °C</p>" +
     '<details><summary>把风味放到同一把尺上</summary>' + cup.axes.map((axis) =>
@@ -576,12 +547,11 @@ function recipeSummary(d) {
 function overlayHTML() {
   const overlay = state.overlay;
   if (!overlay) return "";
+  if(overlay.type==="review")return panel("第 "+sessionOf(state).day+" 晚 · 打烊手记",linesFor(state).slice(0,sessionOf(state).cursor).map(e=>'<p><b>'+escape(e.beer+" · "+e.name)+'</b><br>'+escape(e.text)+'</p>').join(""));
   if (overlay.type === "edit") return editPanel();
   if (overlay.type === "journal") return journalPanel();
   if (overlay.type === "tasting") return panel("开杯笔记", cupHTML(state.draft));
-  if (overlay.type === "slots") return panel("把酒牌放在哪一席？", '<p class="muted">' +
-    (state.taps.every(Boolean) ? "六席都满了。先把牌子夹回本子，也可以去看看酒屋。" : "点一张空酒牌，把这一锅送下楼。") +
-    '</p><div class="choices">' + state.taps.map((t, i) => btn("第 " + (i + 1) + " 席 · " + (t ? beerName(t.d) : "空着"), "shelve", "choice",
+  if (overlay.type === "slots") return panel("上枪，哪个头？", '<div class="gun-slots">' + state.taps.slice(0,3).map((t,i)=>btn((i+1)+" 号头"+(t?" · "+beerName(t.d):""), "shelve", "choice",
       'data-slot="' + i + '" ' + (t ? "disabled" : ""))).join("") + "</div>" + btn("去酒屋看看", "room", "subtle"));
   if (overlay.type === "dump") {
     const t = state.taps[state.selected];
@@ -613,7 +583,10 @@ function animateText() {
     if (i >= text.length) revealText();
   }, 28);
 }
+const cropWatch=new ResizeObserver(entries=>entries.forEach(e=>cropPlate(e.target)));
+let autoPage;
 function render(focus = true) {
+  clearTimeout(autoPage);
   clearInterval(typingTimer);
   clearTimeout(feedTimer);
 
@@ -621,7 +594,7 @@ function render(focus = true) {
   typing = false;
   const ghost = fadeSnapshot();
   const context = sceneState();
-  const label = state.view === "room" ? "楼下酒屋" + (context.t ? " · 第 " + context.t.night + " 晚" : "") :
+  const label = state.view === "room" ? "楼下酒屋 · 第 "+sessionOf(state).day+" 晚"+(sessionOf(state).closed?" · 已打烊":" · 营业中") :
     state.draft.step === 5 ? "窗前 · 分装后第 " + context.recipe.ageDays + " 天" : locations[state.draft.step];
   app.innerHTML = '<main class="world ' + (state.view === "room" ? "room " : "") + (!state.settings.motion ? "reduce-motion" : "") +
     '"' + (state.overlay ? ' inert aria-hidden="true"' : "") + '><header class="hud"><span class="location">' + escape(label) + "</span>" + btn("手记", "journal", "book-toggle") + "</header>" +
@@ -638,12 +611,22 @@ function render(focus = true) {
       overlayReturnFocus = null;
     }
   }
+  cropWatch.disconnect();for(const svg of app.querySelectorAll("svg[data-subject]")){cropPlate(svg);cropWatch.observe(svg);}
   animateText();
   mountCamera();
   mountFeed();
   crossfade(ghost);
   clearTimeout(alarmTimer);
   const f = state.story?.frames[state.story.index];
+  if(state.view==="kitchen" && f && !f.choice && !state.overlay){
+    const turn=()=>{if(document.hidden){autoPage=setTimeout(turn,1500);return;}if(state.story?.frames[state.story.index]!==f||state.overlay)return;if(typing)revealText();advance();save();render();};
+    autoPage=setTimeout(turn,Math.min(10000,Math.max(5000,5000+currentFrame().text.length*48)));
+  }
+  if(!state.story && !state.overlay && state.view==="kitchen" && !opening){
+    const d=state.draft;
+    const act=d.step===2?"main":d.step===5&&!d.tasted?"main":null;
+    if(act){const go=()=>{if(document.hidden){autoPage=setTimeout(go,1000);return;}if(state.draft!==d||state.overlay||state.story)return;doAction({dataset:{act}});save();render();};autoPage=setTimeout(go,6500);}
+  }
   if (timedFrame(f)) {
     if (!Number.isFinite(f.deadline)) { f.deadline = Date.now() + 3000 + (ghost ? 480 : 0); save(); }
     alarmTimer = setTimeout(() => {
@@ -661,6 +644,10 @@ function openJournal(tab = "batch") {
 }
 function commitForm() {
   const d = readForm(), stage = state.overlay.stage;
+  if(state.overlay.when){batchOf(d);d.addedAt=state.overlay.when;delete d.adjudication;state.draft=d;state.history.push({title:"临时加料",speaker:"我",text:"加入 "+d.options.customAdjunct.name+"，"+d.options.customAdjunct.grams+" 克。"});state.overlay=null;
+    const feedback=frame("把 "+d.options.customAdjunct.grams+" 克"+d.options.customAdjunct.name+"加了进去。记好这一笔，接着酿。",{art:"adjunct",additionShot:true,take:"这一回的投料"});
+    if(state.story){state.story.frames.splice(state.story.index+1,0,feedback);logCurrent();state.story.index++;}else play("熟成加料",[feedback]);
+    return;}
   delete d.adjudication;
   batchOf(d);
   state.draft = d;
@@ -676,7 +663,7 @@ function commitForm() {
     frames.push(...incidentFrames(d, ["scale-drift"]));
     frames.push(frame("谷物落进温热的水里，糖化开始了。", { art: "mash", shot: "mashing" }));
     frames.push(...incidentFrames(d, ["mash-cool"]));
-    frames.push(frame("慢慢过滤，把麦汁收起来。", { art: "mash", shot: "mashing" }));
+    frames.push(frame("慢慢过滤，把麦汁收起来。", { art: "mash", shot: "mashing",detail:"filter" }));
     frames.push(...incidentFrames(d, ["filter-slow"]));
     frames.push(frame("麦汁沸腾起来，锅沿的泡沫升了上来。", { art: "mash", shot: "boiling" }));
     frames.push(...incidentFrames(d, ["boil-over"]));
@@ -746,14 +733,15 @@ async function openFirstCup(d) {
     play("第一杯", tastingFrames(d), {tasted:true});save();render();
   } finally {opening=null;}
 }
+const pendingVoices=new WeakMap();
 function supplyNight(tap){
   if(!tap)return;
   const day=tap.night; tap.voices??={};
-  if(Object.hasOwn(tap.voices,day))return;
+  if(tap.voices[day]?.length || pendingVoices.get(tap)===day)return;pendingVoices.set(tap,day);
   tap.voices[day]=[];save();
   const {batch,night}=delivery(tap);
   voicePosts(batch,night.posts.filter(p=>p.session===day)).then(rows=>{
-    if(!rows)return;
+    pendingVoices.delete(tap);if(!rows)return;
     const target=[...state.taps,...state.archive].find(t=>t && t.number===tap.number && t.d.seed===tap.d.seed);
     if(!target)return;
     target.voices[day]=rows;save();
@@ -764,6 +752,16 @@ function doAction(button) {
   const action = button.dataset.act;
   // Story mutations are serialized in this event handler and saved before another
   // input can advance. The DOM is replaced after every transition.
+  const svc=sessionOf(state);
+  if(state.view==="room"&&action==="kitchen"&&svc.closed)return doAction({dataset:{act:"morning"}});
+  if(state.view==="room"&&!svc.closed&&["kitchen","rewind","demo-warm","demo-boil","dump","archive","confirm-dump"].includes(action)){notice("还在营业，打烊后再安排。");return;}
+  if(action==="add-now"){const when=state.story?addAt(currentFrame()):state.draft.step===3?"conditioning":null;if(!when)return;const d=structuredClone(state.draft);if(d.options.customAdjunct)(d.options.previousAdditions??=[]).push(structuredClone(d.options.customAdjunct));d.options.adjunct="custom";d.options.customAdjunct={day:state.story?currentFrame().brewDay:undefined,name:"",preparation:"",grams:45,stage:when};state.overlay={type:"edit",stage:3,draft:d,when};return;}
+  if(action==="filter"){const i=Number(button.dataset.slot);svc.filter=svc.filter===i?null:i;return;}
+  if(action==="reply"){svc.replies[button.dataset.id]=true;svc.cursor++;return;}
+  if(action==="close-service"){svc.closed=true;return;}
+  if(action==="review"){state.overlay={type:"review"};return;}
+  if(action==="morning"||action==="new-service"){if(!svc.closed)return;for(const t of state.taps.slice(0,3).filter(Boolean)){state.selected=t.slot;if(nightStatus(t).finished)archiveTap(state);else nextNight(state);}state.selected=Math.max(0,state.taps.findIndex(Boolean));state.service={day:svc.day+1,closed:false,cursor:1,filter:null,replies:{}};state.overlay=null;state.view=action==="morning"?"kitchen":"room";if(state.view==="room")offerServiceIncident();return;}
+  if(action==="plain"&&state.draft.step===3){if(!state.draft.addedAt){state.draft.options.adjunct="none";delete state.draft.options.customAdjunct;}state.draft.options.barrelDays=0;play("照原方",[frame("把砧板收起。今天，让麦芽和酒花自己说话。",{art:"pack"})],{step:4});return;}
   if (action === "continue") {
     if (typing) { revealText(); return "keep"; }
     advance(); return;
@@ -793,6 +791,7 @@ function doAction(button) {
   }
   if (action === "tasting") { state.overlay = { type: "tasting" }; return; }
   if (action === "shelve") {
+    sessionOf(state).filter=null;
     roomArrived = false;
     const tap = shelve(state, Number(button.dataset.slot));
     play("送到楼下", [
@@ -871,7 +870,7 @@ function doAction(button) {
   if (action === "demo-room") {
     let slot = state.taps.findIndex((tap) => tap?.d.name === "夜班后的半杯");
     if (slot < 0) {
-      slot = state.taps.indexOf(null);
+      slot = state.taps.slice(0,3).indexOf(null);
       if (slot < 0) throw Error("酒屋已满，可以直接去看已有的一席");
       const draft = state.draft;
       const example = blank(12).draft;
@@ -932,13 +931,13 @@ app.addEventListener("change", async (event) => {
     if (input.closest("#edit-form")) {
       const pending = readForm();
       if (input.name === "preset") {
-        pending.options = { baselineVersion:pending.options.baselineVersion, volumeL: pending.options.volumeL, processVersion: pending.options.processVersion ?? 1 };
+        pending.picked=true;pending.options = { baselineVersion:pending.options.baselineVersion, volumeL: pending.options.volumeL, processVersion: pending.options.processVersion ?? 1 };
         pending.benchmark = "";
       }
       if (input.name === "o.extraHopUse") delete pending.options.extraHopTime;
       state.overlay.draft = pending;
       save();
-      if (input.name === "preset" || input.name === "o.extraHopUse" || input.name === "o.adjunct") {
+      if (input.name === "preset" || ["o.hopId","o.yeastId","o.dryHopGrams","o.specialtyPct","o.extraHopId","o.extraHopGrams"].includes(input.name) || input.name === "o.maltId" || input.name === "o.specialtyMaltId" || input.name === "o.extraHopUse" || input.name === "o.adjunct") {
         const open = [...app.querySelectorAll("details")].map((el) => el.open);
         render(false);
         app.querySelectorAll("details").forEach((el, i) => { el.open = !!open[i]; });

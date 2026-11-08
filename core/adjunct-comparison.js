@@ -5,7 +5,7 @@ import { taste } from "./tasting.js";
 // Evaluate on opening a cup or its journal, never per Monte Carlo visitor.
 export function withoutAdjunct(draft) {
   const options = { ...draft.options, adjunct: "none" };
-  delete options.customAdjunct;
+  delete options.customAdjunct;delete options.previousAdditions;
   return brew(makeRecipe(draft.preset, options), draft.seed, draft.choices);
 }
 

@@ -1,3 +1,4 @@
+import {localLuna} from "../server/local-luna.mjs";
 import { createServer } from "node:http";
 import { createLuna } from "../server/luna.mjs";
 import { readFile } from "node:fs/promises";
@@ -17,7 +18,7 @@ const types = {
   ".webp": "image/webp",
 };
 
-const adjudicate = createLuna();
+const adjudicate = createLuna(process.env.OPENAI_API_KEY ? {} : {provider:localLuna});
 const endpoints = new Set(["/api/adjudicate", "/api/guests"]);
 
 async function api(request, response, path) {

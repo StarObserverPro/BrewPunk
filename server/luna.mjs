@@ -132,12 +132,13 @@ function remember(map, key, value) {
 export function createLuna({
   apiKey = globalThis.process?.env?.OPENAI_API_KEY,
   fetchImpl = fetch,
+  provider = respond,
 } = {}) {
   const materials = new Map(),
     cache = new Map(),
     pending = new Map();
   return async function dispatch(route, input) {
-    if (!apiKey) throw Object.assign(Error("not configured"), { status: 503 });
+    if (!apiKey && provider === respond) throw Object.assign(Error("not configured"), { status: 503 });
     if (!input || typeof input !== "object" || Array.isArray(input))
       throw inputError("需要对象");
     const id = route + JSON.stringify(input);
@@ -147,7 +148,7 @@ export function createLuna({
     async function run() {
       if (route === "guests") {
         const guests = guestViews(input);
-        const result = await respond(
+        const result = await provider(
           fetchImpl,
           apiKey,
           "taproom_guests",
@@ -186,7 +187,7 @@ export function createLuna({
           material.preparation.trim().normalize("NFKC").toLowerCase(),
         ]);
       const known = profileKey && materials.get(profileKey);
-      const result = await respond(
+      const result = await provider(
         fetchImpl,
         apiKey,
         "brew_adjudication",
