@@ -39,6 +39,8 @@ export function restore(raw) {
   s.nextNumber ??= 1;
   s.draft.inspected ??= s.draft.step > 2;
   s.draft.tasted ??= s.draft.step === 5;
+  for(let i=3;i<6;i++){const t=s.taps[i];if(t){s.archive.push({...t,legacySeat:true});s.taps[i]=null;}}
+  if(s.selected>2)s.selected=Math.max(0,s.taps.findIndex(Boolean));
   s.version = 2;
   return s;
 }
@@ -76,7 +78,7 @@ export function nightStatus(tap) {
   };
 }
 export function shelve(state, slot) {
-  if (state.taps[slot] || slot < 0 || slot > 5) throw Error("这一席已经有酒了，请另选空席");
+  if (state.taps[slot] || slot < 0 || slot > 2) throw Error("这一席已经有酒了，请另选空席");
   if (!state.draft.tasted) throw Error("先尝过第一杯，再送去酒屋");
   const tap = {
     slot, number: state.nextNumber++, d: structuredClone(state.draft), night: 1,

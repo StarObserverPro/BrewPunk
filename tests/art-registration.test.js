@@ -7,7 +7,7 @@ import { packagingShot, packagingSequence } from '../ui/packaging-art.js';
 
 test('every selected production image is registered, exists, and has a player-visible album entry', () => {
   const registered = new Set(albumEntries.map(a => a.src));
-  assert.equal(registered.size, 64);
+  assert.equal(registered.size, 69);
   for (const dir of ['kitchen','taproom','packaging','workshop','ingredients']) {
     for (const file of readdirSync(new URL('../assets/'+dir+'/', import.meta.url)).filter(f => /\.(png|jpg)$/.test(f))) {
       const src = 'assets/'+dir+'/'+file;

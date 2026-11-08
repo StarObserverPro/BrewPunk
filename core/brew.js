@@ -151,6 +151,7 @@ export function makeRecipe(id, o = {}) {
   const adjunct = o.adjunct ?? "none";
   return Object.assign(r, {
     ...(o.baselineVersion === 1 ? { baselineVersion: 1 } : {}),
+    ...(o.previousAdditions?.length ? {previousAdditions:o.previousAdditions.map(normalizeAdjunct)} : {}),
     ...(o.customAdjunct ? { customAdjunct: normalizeAdjunct(o.customAdjunct) } : {}),
     processVersion: o.processVersion ?? 1,
     name: preset.name,
@@ -231,23 +232,19 @@ export function brew(recipe, seed = 1, choices = {}) {
     });
   }
   const baseline = recipe.baselineVersion === 1 ? referenceBaseline(recipe, seed) : null;
-  const addition = r.customAdjunct ? resolveAdjunct(r.customAdjunct, r.batchVolumeL) : null;
-  if (baseline || addition) {
-    let day = 0;
-    r.fermentation.steps = r.fermentation.steps.flatMap(step => {
-      const before = addition ? clamp(addition.startDay - day, 0, step.days) : 0;
-      day += step.days;
-      const factor = baseline?.rateFactor ?? 1;
-      const segments = [];
-      if (before) segments.push({ ...step, days: before, rateFactor: factor });
-      if (before < step.days) segments.push({ ...step, days: step.days - before,
-        rateFactor: factor * (addition?.rateMultiplier ?? 1) });
-      return segments;
+  const charges=[...(r.previousAdditions||[]),...(r.customAdjunct?[r.customAdjunct]:[])].map(a=>resolveAdjunct(a,r.batchVolumeL));
+  if(baseline || charges.length){
+    let day=0;
+    r.fermentation.steps=r.fermentation.steps.flatMap(step=>{
+      const end=day+step.days;
+      const cuts=[...new Set(charges.map(a=>a.startDay).filter(t=>t>day && t<end))].sort((a,b)=>a-b);
+      return [...cuts,end].map(t=>{const days=t-day,rateFactor=charges.filter(a=>a.startDay<=day).reduce((n,a)=>n*a.rateMultiplier,baseline?.rateFactor??1);day=t;return {...step,days,rateFactor};});
     });
   }
   const ctx = buildContext(r);
   const curve = ctx.attenuation.kinetics.curve;
-  const customAdjunct = addition ? finishAdjunct(addition, curve, { boilTimeMin: r.boilTimeMin, conditioningDays: process.barrelDays }) : null;
+  const additions=charges.map(a=>finishAdjunct(a,curve,{boilTimeMin:r.boilTimeMin,conditioningDays:process.barrelDays}));
+  const customAdjunct=additions.at(-1);
   const dryHopActivity = [];
   const hopLotFactors = {};
   const effectiveHops = r.hops.map((h) => {
@@ -314,7 +311,7 @@ export function brew(recipe, seed = 1, choices = {}) {
   }
   // Retain the unsaturated base so each later glass can apply its own constituent weights.
   const sensoryBeforeAdjunct = customAdjunct ? { ...sensory } : null;
-  for (const [axis, weight] of Object.entries(customAdjunct?.axisWeights ?? {})) {
+  for(const a of additions) for (const [axis, weight] of Object.entries(a.axisWeights)) {
     sensory[axis] += weight;
   }
   for (const k of Object.keys(sensory)) sensory[k] = clamp(sensory[k], 0, 10);
@@ -322,7 +319,7 @@ export function brew(recipe, seed = 1, choices = {}) {
   return {
     seed,
     ...(baseline ? { baseline } : {}),
-    ...(customAdjunct ? { customAdjunct, sensoryBeforeAdjunct } : {}),
+    ...(customAdjunct ? { customAdjunct, additions, sensoryBeforeAdjunct } : {}),
     recipe: structuredClone(recipe),
     metrics: {
       og: ctx.gravity.og,

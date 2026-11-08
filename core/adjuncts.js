@@ -246,6 +246,7 @@ export function normalizeAdjunct(input) {
     preparation,
     grams,
     stage,
+    ...(Number.isFinite(input.day)?{day:Math.max(0,input.day)}:{}),
     profile: validateProfile(
       profile ?? offlineProfile(name.trim(), preparation),
     ),
@@ -282,7 +283,7 @@ export function resolveAdjunct(input, volumeL) {
     doseGL,
     tier,
     rateMultiplier,
-    startDay: a.stage === "active" ? 2 : 0,
+    startDay: a.stage === "active" ? (a.day??2) : 0,
   };
 }
 export function finishAdjunct(

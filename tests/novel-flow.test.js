@@ -33,7 +33,7 @@ test("delivery survives reload and repeating an old delivery cannot take a secon
 
 test("occupied seats retain their original batch and a full room preserves the new draft", () => {
   const state = blank(3);
-  for (let slot = 0; slot < 6; slot++) {
+  for (let slot = 0; slot < 3; slot++) {
     state.draft.tasted = true;
     shelve(state, slot);
   }

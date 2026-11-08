@@ -370,14 +370,15 @@ export function taste(batch, options = {}) {
     (excursion ? excursionDays * (2 ** ((excursion.tempC - 10) / 10) - 2 ** ((storageC - 10) / 10)) : 0);
   // Relative bands: quick fruit/oil notes fade faster than floral terpenols.
   const hopLoss = (0.0024 + oxygen * 0.012) * warmDays;
-  const addition = batch.customAdjunct ? finishAdjunct(batch.customAdjunct, batch.curve, {
+  const charges = (batch.additions ?? (batch.customAdjunct?[batch.customAdjunct]:[])).map(a=>finishAdjunct(a, batch.curve, {
     boilTimeMin: recipe.boilTimeMin,
     conditioningDays: batch.barrelDays,
     packageThermalDays: warmDays,
-  }) : null;
+  }));
+  const addition=charges.at(-1);
   const s = { ...(batch.sensoryBeforeAdjunct ?? batch.sensory) };
   if (addition) {
-    for (const key of Object.keys(s)) s[key] = bound(s[key] + (addition.axisWeights[key] ?? 0));
+    for (const key of Object.keys(s)) s[key] = bound(charges.reduce((v,a)=>v+(a.axisWeights[key]??0),s[key]));
   }
   const raw = batch.descriptors ?? [];
   const extraTags = raw.filter(
@@ -447,7 +448,7 @@ export function taste(batch, options = {}) {
   if (s.stale > 2.5)
     candidates.push({ text: "旧纸盒", strength: s.stale * 1.3 });
   candidates.push(...off);
-  const additions = (addition?.budgets ?? []).flatMap(component => [
+  const additions = charges.flatMap(a=>a.budgets).flatMap(component => [
     { text: component.direct, strength: component.directWeight, family: component.directFamily, threshold: 0.5 },
     { text: component.evolved, strength: component.evolvedWeight, family: component.evolvedFamily, threshold: 0.3 },
   ]).filter(note => note.text && note.strength > note.threshold)
@@ -547,7 +548,7 @@ export function taste(batch, options = {}) {
   const styleId = options.styleId ?? recipe.styleId ?? recipe.id ?? "apa";
   return {
     note,
-    ...(addition ? { customAdjunct: addition } : {}),
+    ...(addition ? { customAdjunct: addition, additions:charges } : {}),
     phrases: { palate: first + "，" + body, finish: [tail, ...finishNotes, ...flags].join("，") },
     colour,
     descriptors,
