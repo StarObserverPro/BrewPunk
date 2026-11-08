@@ -337,7 +337,10 @@ export function taste(batch, options = {}) {
   );
   const oxygen = bound(Number(options.oxygen ?? batch.exposure ?? 0.2), 0, 1);
   const co2Loss = bound(Number(options.co2Loss ?? 0), 0, 1);
-  const warmDays = ageDays * 2 ** ((storageC - 10) / 10);
+  const excursion = batch.storageExcursion;
+  const excursionDays = excursion ? Math.max(0, Math.min(excursion.days, ageDays - excursion.startDay)) : 0;
+  const warmDays = ageDays * 2 ** ((storageC - 10) / 10) +
+    (excursion ? excursionDays * (2 ** ((excursion.tempC - 10) / 10) - 2 ** ((storageC - 10) / 10)) : 0);
   // Relative bands: quick fruit/oil notes fade faster than floral terpenols.
   const hopLoss = (0.0024 + oxygen * 0.012) * warmDays;
   const s = { ...batch.sensory };

@@ -9,6 +9,7 @@ import {
 import { WATER_PROFILE_BY_ID } from "../vendor/brewlab/water.js";
 import { clamp } from "../vendor/brewlab/calculations.js";
 import { processEvents } from "./accidents.js";
+import { applyProcessChanges } from "./process.js";
 import { rng } from "./random.js";
 
 export const PRESETS = [
@@ -147,6 +148,7 @@ export function makeRecipe(id, o = {}) {
   const packaging = o.packaging ?? "keg";
   const adjunct = o.adjunct ?? "none";
   return Object.assign(r, {
+    processVersion: o.processVersion ?? 1,
     name: preset.name,
     presetId: id,
     styleId: id,
@@ -197,7 +199,7 @@ export function brew(recipe, seed = 1, choices = {}) {
   r.conditioning.days = 0;
   const events = processEvents(r, seed, choices);
   const magnitude = (id) => events.find((e) => e.id === id)?.magnitude ?? 0;
-  for (const f of r.fermentables) f.weightKg *= 1 - magnitude("scale-drift");
+  const process = applyProcessChanges(r, events, choices);
   const warmNight = events.find((e) => e.id === "warm-night");
   if (warmNight) {
     const heat = warmNight.magnitude;
@@ -316,13 +318,17 @@ export function brew(recipe, seed = 1, choices = {}) {
     exposure: clamp(
       base +
         (choices.closedTransfer === false ? 0.15 : 0) +
-        magnitude("air-pickup"),
+        process.exposure,
       0,
       1,
     ),
     packageDefects: {
       probability: { keg: 0.008, can: 0.035, bottle: 0.025 }[r.packaging],
     },
+    yieldL: process.yieldL,
+    barrelDays: process.barrelDays,
+    storageExcursion: process.storageExcursion,
+    sealChecked: choices.sealCheck === true,
   };
 }
 
@@ -344,7 +350,7 @@ export function sampleBrews(
   for (let i = 0; i < runs; i++) {
     const batch = brew(recipe, Math.floor(draw() * 4294967296), choices);
     if (batch.events.length) affected++;
-    for (const e of batch.events) counts[e.id]++;
+    for (const e of batch.events) counts[e.id] = (counts[e.id] ?? 0) + 1;
     for (const [k, list] of Object.entries(values)) list.push(batch.metrics[k]);
   }
   const metrics = {};

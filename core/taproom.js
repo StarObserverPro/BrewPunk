@@ -308,6 +308,7 @@ export function simulateNight(batch, options = {}) {
     recent = new Set(),
     posts = [],
     servings = [],
+    serviceEvents = [],
     packageCache = new Map();
   let remainingMl = Math.round(volumeL * 1000),
     servedMl = 0,
@@ -352,9 +353,10 @@ export function simulateNight(batch, options = {}) {
         eveningVisits === 0 &&
         rng(batch.seed, "tap-line/" + tap + "/" + session)() < 0.22;
       if (foam) {
-        const lost = Math.min(100, remainingMl);
+        const lost = Math.min(options.serviceChoices?.[session]?.chillLine ? 30 : 100, remainingMl);
         remainingMl -= lost;
         lostMl += lost;
+        serviceEvents.push({ id: "tap-foam", session, lostMl: lost, scope: "first-pour" });
       }
       for (let member = 0; member < party && remainingMl >= 60; member++) {
         const guest = visitor(guests, names, returns);
@@ -457,18 +459,20 @@ export function simulateNight(batch, options = {}) {
     lossL: lostMl / 1000,
     remainingL: remainingMl / 1000,
     meanEnjoyment: visitors ? totalFit / visitors : 0,
+    serviceEvents,
   };
 }
 
-function packageCondition(batch, type, id) {
+export function packageCondition(batch, type, id) {
   if (type === "keg") return {};
   const r = rng(batch.seed, "pack/" + type + "/" + id);
   const baseline = clamp(batch.exposure ?? 0.2, 0, 1);
   // A single poor closure is local; an interrupted fill affects a run of cans.
   const run = rng(batch.seed, "pack-run/" + type + "/" + Math.floor(id / 6));
-  const exposed = type === "can" && run() < 0.04 + 0.12 * baseline;
+  const factor = batch.sealChecked && id > 0 ? 0.2 : 1;
+  const exposed = type === "can" && run() < (0.04 + 0.12 * baseline) * factor;
   const loose =
-    r() < (batch.packageDefects?.probability ?? 0.018 + 0.06 * baseline);
+    r() < (batch.packageDefects?.probability ?? 0.018 + 0.06 * baseline) * factor;
   return {
     oxygen: clamp(baseline + (exposed ? 0.45 : 0) + (loose ? 0.28 : 0), 0, 1),
     co2Loss: loose ? 0.64 : 0,
