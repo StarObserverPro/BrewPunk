@@ -97,3 +97,19 @@ test("an unknown material may carry a neutral profile; malformed profiles and un
   });
   await assert.rejects(offline("adjudicate", glass), { status: 503 });
 });
+
+test("a mixed evening's schema ties replies to the patrons who have one", async () => {
+  const guests = [guest, { ...guest, id: "night2", replyName: "阿梨" }];
+  const {dispatch, requests} = fake(() => ({ posts: [
+    { id: "night1", text: "苦。", replyText: null },
+    { id: "night2", text: "给你留了一口。", replyText: "来了。" },
+  ] }));
+  await dispatch("guests", {guests});
+  const posts = requests[0].text.format.schema.properties.posts;
+  assert.equal(posts.minItems, 2);
+  assert.equal(posts.maxItems, 2);
+  assert.deepEqual(posts.items.anyOf.map(({ properties }) =>
+    [properties.id.enum, properties.replyText.type]), [
+    [["night1"], "null"], [["night2"], "string"],
+  ]);
+});

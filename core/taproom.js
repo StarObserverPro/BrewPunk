@@ -1,3 +1,4 @@
+import { guestVoice } from "./guest-voice.js";
 import { rng } from "./random.js";
 import { taste } from "./tasting.js";
 
@@ -75,12 +76,9 @@ const guess = {
   草本: "茶叶",
   樱桃: "樱桃汁",
 };
-const instructions =
-  "你刚喝过这杯酒，用这个人的口气留一条中文动态。原帖至少写出对杯中酒的一个具体反应，可以只写半句话，也可以接着说当晚的事。跟帖接住上一句话即可。你能知道的只有公开酒牌、这一杯的感受、现场经历和给出的公开留言。你可以猜错配料，猜测要写成这个人的看法。照分配的篇幅写。只返回正文。";
-
 /** This deliberately exposes only the drinker's view, never the recipe, score or fault log. */
 export function guestPrompt(post) {
-  return { instructions, input: { ...post.prompt } };
+  return { instructions: guestVoice, input: { ...post.prompt } };
 }
 
 function glassFacts(t, foam) {
@@ -155,9 +153,9 @@ function visitReport(
   if (life) seenTalk.add(life[0]);
   const prime = foam ? f.small[0] : pick(r, f.small);
   const preference = {
-    喜欢: ["喜欢这口。", "我能再喝一杯。", "挺合我意。"],
-    一般: ["半杯够了。", "给我小杯正合适。", "我再想想。"],
-    不合口味: ["这口我有点扛不住。", "还是留给同桌吧。", "我想换个头。"],
+    喜欢: ["我还想喝。", "下杯还点它。", "这口我喜欢。"],
+    一般: ["半杯刚好。", "还行。", "我先慢慢喝。"],
+    不合口味: ["喝不惯。", "谁跟我换？", "下杯我换个头。"],
   };
   let text;
   // Diversify wording before publication. No reroll ever changes the tasted beer.
@@ -183,11 +181,11 @@ function visitReport(
         pick(r, [
           "我赌里面放了" + guess[f.first] + "。",
           "这味道我熟，八成有" + guess[f.first] + "。",
-        ]) + (len === "长" ? "他们问我凭什么，我又把杯子闻了一遍。" : "");
+        ]) + (len === "长" ? "问我怎么知道的？猜的。" : "");
     else if (len === "长" || guest.experience > 0.65) {
       const note = pick(r, [
         "闻着有" + f.first + "，",
-        "杯子凑近有一点" + f.first + "的味道，",
+        "凑近了才闻着点" + f.first + "的味道，",
         "刚倒下来先闻到" + f.first + "，",
         "一杯见底，最记得" + f.first + "那股香，",
       ]);
@@ -198,7 +196,7 @@ function visitReport(
           f.small.filter((x) => !x.startsWith("闻着")),
         ) +
         "。" +
-        (len === "长" && history ? "上一次我也点了这个头。" : "") +
+        (len === "长" && history ? "上回我也点的它。" : "") +
         verdict;
     } else if (history)
       text =
