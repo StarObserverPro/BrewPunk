@@ -1,7 +1,7 @@
 import {cropPlate} from "./framing.js";
 import {sessionOf,linesFor} from "./service.js";
 import { materialArt } from "./adjunct-art.js";
-import { adjudicateDraft, voicePosts } from "./ai-client.js";
+import { adjudicateDraft, applyAdjudication, voicePosts } from "./ai-client.js";
 import { compareAdjunct } from "../core/adjunct-comparison.js";
 import { offlineProfile } from "../core/adjuncts.js";
 import { taste, STYLE_OPTIONS } from "../core/tasting.js";
@@ -474,12 +474,17 @@ function styleComparison(comparison) {
     comparison.parts.map(p=>escape(p.label)+' '+signed(p.delta)).join(" · ")+'</p>';
 }
 function cupHTML(d) {
+  const pending = opening === d;
+  const needsRetry = ["http:", "https:"].includes(location.protocol) && d.adjudication?.status !== "luna";
+  const status = needsRetry ? '<p role="status">' + (pending ? "正在品这一杯…" : "这杯尚未完成品鉴。") + '</p>' +
+    btn(pending ? "正在品鉴…" : "重新品鉴这杯", "retry-cup", "subtle", 'data-seed="'+d.seed+'" '+(pending?"disabled":"")) : "";
+
   const { recipe: r, batch: b } = batchOf(d);
   const cup = taste(b, cupOptions(d, r, b));
   const a = cup.customAdjunct;
   const comp = compareAdjunct(d, b, cup, cupOptions(d, r, b));
   const report = (cup.additions??(a?[a]:[])).map(materialReport).join("");
-  return '<h2>' + escape(beerName(d)) + '</h2>'+report+'<div class="metric-row"><span>' + b.metrics.abv.toFixed(1) + "% ABV</span><span>" + Math.round(b.metrics.ibu) + " IBU</span><span>" + Math.round(b.metrics.srm) +
+  return status + '<h2>' + escape(beerName(d)) + '</h2>'+report+'<div class="metric-row"><span>' + b.metrics.abv.toFixed(1) + "% ABV</span><span>" + Math.round(b.metrics.ibu) + " IBU</span><span>" + Math.round(b.metrics.srm) +
     " SRM</span></div><p>" + escape(d.adjudication?.note || cup.note) + "</p><p class='muted'>" + packs[r.packaging] + " · 分装后第 " + r.ageDays + " 天 · 储温 " + r.storageC + " °C</p>" +
     '<details><summary>把风味放到同一把尺上</summary>' + cup.axes.map((axis) =>
       '<div class="axis"><span>' + escape(axis.label) + "</span><span>" + axis.value + '</span><meter min="0" max="10" value="' + axis.value + '"></meter><small>' +
@@ -713,25 +718,40 @@ function readForm() {
   return draft;
 }
 let opening = null;
-async function openFirstCup(d) {
-  if (opening===d)return;
-  opening=d;
-  const benchmark=d.benchmark;
-  render(false);
-  try {
-    let result=null;
-    if(!d.adjudication){
-      d.adjudication={status:"local"}; save();
-      result=await adjudicateDraft(d,batchOf(d).batch);
+async function openFirstCup(d, replay = true) {
+  if (opening) return;
+  opening = d;
+  const benchmark = d.benchmark;
+  const recipeAtStart = JSON.stringify(d.options);
+  const online = ["http:", "https:"].includes(location.protocol);
+  if (online && d.adjudication?.status !== "luna") {
+    d.adjudication = {status:"pending"};
+    save();
+    render(false);
+    const result = await adjudicateDraft(d, batchOf(d).batch);
+    if (!result) {
+      d.adjudication = {status:"failed"};
+      opening = null;
+      save();
+      render(false);
+      notice("这杯还没品完，点一下再试。");
+      return;
     }
-    if(state.draft!==d || d.step!==5 || d.tasted || state.story) return;
-    if(result){
-      if(result.profile && d.options.customAdjunct)d.options.customAdjunct.profile=result.profile;
-      d.adjudication={status:"luna",note:result.note,judgeComment:benchmark===d.benchmark?result.judgeComment:null};
+    if (JSON.stringify(d.options) !== recipeAtStart) {
+      d.adjudication = {status:"failed"};
+      opening = null;
+      save();
+      render(false);
+      notice("配方已改，重新尝一下这杯。");
+      return;
     }
-    opening=null;
-    play("第一杯", tastingFrames(d), {tasted:true});save();render();
-  } finally {opening=null;}
+    applyAdjudication(d, result, benchmark);
+  }
+  opening = null;
+  if (replay && state.draft===d && d.step===5 && !d.tasted && !state.story)
+    play("第一杯", tastingFrames(d), {tasted:true});
+  save();
+  render();
 }
 const pendingVoices=new WeakMap();
 function supplyNight(tap){
@@ -750,6 +770,11 @@ function supplyNight(tap){
 }
 function doAction(button) {
   const action = button.dataset.act;
+  if (action === "retry-cup") {
+    const d=[state.draft,...state.taps.filter(Boolean).map(t=>t.d),...state.archive.map(t=>t.d)].find(d=>String(d.seed)===button.dataset.seed);
+    if(d)void openFirstCup(d,false);
+    return;
+  }
   // Story mutations are serialized in this event handler and saved before another
   // input can advance. The DOM is replaced after every transition.
   const svc=sessionOf(state);

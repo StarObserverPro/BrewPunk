@@ -168,7 +168,8 @@ export function createLuna({
         return { posts: validPosts(result, guests) };
       }
       if (route !== "adjudicate") throw inputError("未知接口");
-      const { material, context } = input;
+      const { context } = input;
+      const material = input.material ? {...input.material, preparation:input.material.preparation ?? ""} : input.material;
       if (
         !context ||
         !short(context.style, 100) ||

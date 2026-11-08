@@ -113,3 +113,11 @@ test("a mixed evening's schema ties replies to the patrons who have one", async 
     [["night1"], "null"], [["night2"], "string"],
   ]);
 });
+
+test("legacy material input with no preparation reaches the provider",async()=>{
+  const {dispatch,requests}=fake(()=>({profile:candidate,noteTemplate,judgeTemplate}));
+  const input=structuredClone(glass);delete input.material.preparation;
+  const result=await dispatch("adjudicate",input);
+  assert.deepEqual(result.profile,candidate);
+  assert.equal(JSON.parse(requests[0].input).material.preparation,"");
+});

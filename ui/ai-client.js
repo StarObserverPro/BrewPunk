@@ -74,7 +74,7 @@ export function realiseVerdict(result, cup) {
 export async function adjudicateDraft(draft, batch) {
   const { recipe: r } = batch;
   const cup = cupAtOpening(batch, draft);
-  const source = draft.options.customAdjunct;
+  const source = r.customAdjunct;
   const material =
     r.adjunct === "custom" && source
       ? {
@@ -84,7 +84,8 @@ export async function adjudicateDraft(draft, batch) {
           stage: source.stage,
         }
       : null;
-  const baseBatch = r.adjunct === "none" ? batch : withoutAdjunct(draft);
+  const baseBatch = r.customAdjunct || r.previousAdditions?.length || r.adjunct !== "none"
+    ? withoutAdjunct(draft) : batch;
   const baseCup = cupAtOpening(baseBatch, draft);
   const context = {
     style: cup.bjcp.name,
@@ -113,27 +114,38 @@ export async function adjudicateDraft(draft, batch) {
     openingPreview: cup.note,
     stylePreview: cup.bjcp.comment,
   };
-  const result = await request("adjudicate", { material, context });
-  if (!result) return null;
+  const materials = [...(r.previousAdditions || []), ...(source ? [source] : [])];
+  const results = await Promise.all((materials.length ? materials : [null]).map(item =>
+    request("adjudicate", {
+      material: item ? {name:item.name, preparation:item.preparation, grams:item.grams, stage:item.stage} : null,
+      context: {...context, baselineReference:referencePoints(baseBatch.baseline?.referenceIds || [],item?.name || r.adjunct)},
+    })));
+  if (results.some(result => !result)) return null;
   try {
-    const options =
-      result.profile && material
-        ? {
-            ...draft.options,
-            customAdjunct: { ...source, profile: result.profile },
-          }
-        : draft.options;
-    const finalBatch =
-      options === draft.options
-        ? batch
-        : brew(makeRecipe(draft.preset, options), draft.seed, draft.choices);
+    const options = structuredClone(draft.options);
+    for (let i=0; i<materials.length; i++) {
+      if (!results[i].profile) return null;
+      const original = i < (r.previousAdditions?.length || 0)
+        ? options.previousAdditions[i] : options.customAdjunct;
+      original.profile = results[i].profile;
+    }
+    const finalBatch = brew(makeRecipe(draft.preset, options), draft.seed, draft.choices);
+    const result = results.at(-1);
     return {
-      profile: material ? result.profile : null,
+      options,
+      profile: source ? result.profile : null,
       ...realiseVerdict(result, cupAtOpening(finalBatch, draft)),
     };
   } catch {
     return null;
   }
+}
+
+export function applyAdjudication(draft, result, benchmark = draft.benchmark) {
+  if (result.options) draft.options = result.options;
+  else if (result.profile && draft.options.customAdjunct) draft.options.customAdjunct.profile = result.profile;
+  draft.adjudication = {status:"luna", note:result.note,
+    judgeComment:benchmark===draft.benchmark ? result.judgeComment : null};
 }
 
 export async function voicePosts(_batch, posts) {

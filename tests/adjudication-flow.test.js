@@ -206,3 +206,36 @@ test("a saved guest voice survives journal reload without changing seats, rating
     baseline.posts.filter((p) => p.session > 1),
   );
 });
+
+test("200 g hawthorn without preparation waits for both additions and replaces a failed saved verdict", async t => {
+  const { applyAdjudication } = await import("../ui/ai-client.js");
+  const { taste } = await import("../core/tasting.js");
+  const oldLocation = Object.getOwnPropertyDescriptor(globalThis,"location");
+  Object.defineProperty(globalThis,"location",{value:{protocol:"https:"},configurable:true});
+  t.after(()=>oldLocation ? Object.defineProperty(globalThis,"location",oldLocation) : delete globalThis.location);
+  const draft={preset:"house-pale-ale",seed:24,choices:{},adjudication:{status:"local"},options:{
+    volumeL:20,adjunct:"custom",previousAdditions:[{name:"山楂",grams:100,stage:"conditioning"}],
+    customAdjunct:{name:"山楂",grams:100,stage:"conditioning"},
+  }};
+  const profile={...offlineProfile("大蒜"),direct:"山楂果酸",evolved:"柔和果酸",axis:"acidity",behaviour:"neutral",potency:2};
+  profile.constituents=profile.constituents.map(c=>({...c,direct:"山楂果酸",evolved:"柔和果酸",directAxis:"acidity",evolvedAxis:"acidity"}));
+  const requests=[];let release;
+  const gate=new Promise(resolve=>release=resolve);
+  t.mock.method(globalThis,"fetch",async(_url,opts)=>{
+    requests.push(JSON.parse(opts.body));
+    await gate;
+    return {ok:true,json:async()=>({profile,noteTemplate:"{{colour}}{{nose}}{{palate}}{{finish}}",judgeTemplate:"{{style}}{{match}}"})};
+  });
+  const initial=brew(makeRecipe(draft.preset,draft.options),draft.seed);
+  let completed=false;
+  const task=adjudicateDraft(draft,initial).then(result=>{completed=true;return result;});
+  assert.equal(completed,false);assert.equal(requests.length,2);
+  assert.ok(requests.every(r=>r.material.preparation===""));
+  release();const result=await task;assert.ok(result);
+  applyAdjudication(draft,result);
+  assert.equal(draft.adjudication.status,"luna");
+  assert.deepEqual(draft.options.previousAdditions[0].profile,profile);
+  assert.deepEqual(draft.options.customAdjunct.profile,profile);
+  const final=brew(makeRecipe(draft.preset,draft.options),draft.seed);
+  assert.ok(taste(final).sensory.acidity>taste(initial).sensory.acidity);
+});
