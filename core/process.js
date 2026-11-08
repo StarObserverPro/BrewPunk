@@ -1,3 +1,7 @@
+export function saccharificationRest(recipe) {
+  return recipe.mash.steps.find(step => ["alpha", "beta", "saccharification"].includes(step.kind)) ?? recipe.mash.steps[0];
+}
+
 // Game priors for the portion of the process that happens after a warning.
 // Observed magnitudes stay fixed; effective deviations record the response.
 export function applyProcessChanges(recipe, events, choices) {
@@ -13,10 +17,7 @@ export function applyProcessChanges(recipe, events, choices) {
   const scaleLoss = effective("scale-drift", "scaleCorrect", 0.1);
   for (const malt of recipe.fermentables) malt.weightKg *= 1 - scaleLoss;
   const cool = effective("mash-cool", "mashRescue", 0.45);
-  if (cool) {
-    const rest = recipe.mash.steps.find((step) => ["alpha", "beta", "saccharification"].includes(step.kind)) || recipe.mash.steps[0];
-    rest.tempC -= cool;
-  }
+  if (cool) saccharificationRest(recipe).tempC -= cool;
   lostFraction += effective("filter-slow", "filterRescue", 0.25);
   lostFraction += effective("boil-over", "boilRescue", 0.35);
   lostFraction += effective("airlock-foam", "blowoff", 0.25);

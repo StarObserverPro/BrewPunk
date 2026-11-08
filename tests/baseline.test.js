@@ -10,7 +10,7 @@ test('every playable style resolves to sourced, typed facts in stable order', ()
     const points = referencePoints(ids);
     assert.deepEqual(points.map(point => point.id), ids);
     for (const { scope, source, use, facts } of points) {
-      assert.ok(['recipe', 'brewer-guide', 'supplier-guide'].includes(scope));
+      assert.ok(['recipe', 'brewer-guide', 'supplier-guide', 'style-guide'].includes(scope));
       assert.equal(new URL(source).protocol, 'https:');
       assert.ok(use.length && Object.keys(facts).length);
     }

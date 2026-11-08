@@ -1,3 +1,4 @@
+import { recipePicker, hasPickedRecipe } from "./recipe-picker.js";
 import {cropPlate} from "./framing.js";
 import {sessionOf,linesFor} from "./service.js";
 import { materialArt } from "./adjunct-art.js";
@@ -5,6 +6,7 @@ import { adjudicateDraft, applyAdjudication, voicePosts } from "./ai-client.js";
 import { compareAdjunct } from "../core/adjunct-comparison.js";
 import { offlineProfile } from "../core/adjuncts.js";
 import { taste, STYLE_OPTIONS } from "../core/tasting.js";
+import { saccharificationRest } from "../core/process.js";
 import { sampleBrews } from "../core/brew.js";
 import { sampleTastings, packageCondition } from "../core/taproom.js";
 import { wort, sketch } from "./art.js";
@@ -25,9 +27,27 @@ const storageKey = "brewpunk.journal.v2";
 const escape = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const malts = { pilsner: "皮尔森", "pale-ale": "淡色艾尔", "maris-otter": "玛丽斯奥特", vienna: "维也纳" };
+const grainNames = {
+  ...malts, "wheat-malt": "小麦麦芽", "flaked-oats": "燕麦片", "flaked-wheat": "压片小麦",
+  "munich-light": "浅色慕尼黑麦芽", "munich-dark": "深色慕尼黑麦芽", melanoidin: "类黑精麦芽",
+  "crystal-light": "浅色结晶麦芽", "crystal-medium": "中度结晶麦芽", "crystal-dark": "深色结晶麦芽",
+  "roasted-barley": "烘烤大麦", "black-malt": "黑麦芽", chocolate: "巧克力麦芽", "pale-chocolate": "浅色巧克力麦芽",
+  "smoked-malt": "烟熏麦芽", "carafa-special": "卡拉法去壳烘焙麦芽", aromatic: "芳香麦芽", "special-b": "特种 B 麦芽",
+  "brewing-sugar": "酿造糖", "candi-dark": "深色比利时糖", lactose: "乳糖",
+};
+const seasoningNames = { salt: "盐", coriander: "芫荽籽", "orange-peel": "苦橙皮" };
+function kettleDoses(recipe) {
+  return (recipe.kettleSeasonings || []).map(({id, gramsPerL}) =>
+    seasoningNames[id] + " " + Number((gramsPerL * recipe.batchVolumeL).toFixed(2)) + " g").join("、");
+}
 const waters = { balanced: "均衡", "soft-pilsner": "软水", "hop-forward": "突出酒花", "malt-forward": "突出麦芽", "dark-alkaline": "深色酒用水" };
-const yeasts = { "american-ale": "美式艾尔", "neipa-ale": "新英格兰艾尔", "czech-lager": "捷克拉格", "kveik-voss": "沃斯农家酵母" };
-const hops = { citra: "西楚", mosaic: "马赛克", cascade: "卡斯卡特", simcoe: "西姆科", saaz: "萨兹" };
+const yeasts = { "american-ale": "美式艾尔", "neipa-ale": "新英格兰艾尔", "czech-lager": "捷克拉格", "kveik-voss": "沃斯农家酵母",
+  "english-ale": "英式艾尔", "irish-ale": "爱尔兰艾尔", "german-lager": "德式拉格", saison: "赛松",
+  "belgian-abbey": "比利时修道院艾尔", hefeweizen: "巴伐利亚小麦", kolsch: "科隆艾尔" };
+const hops = { citra: "西楚", mosaic: "马赛克", cascade: "卡斯卡特", simcoe: "西姆科", saaz: "萨兹",
+  magnum: "马格努姆", chinook: "奇努克", centennial: "世纪", challenger: "挑战者", ekg: "东肯特金牌",
+  "hallertau-mf": "哈勒陶米特尔弗吕", perle: "珍珠", target: "靶心", fuggle: "福格尔",
+  "styrian-goldings": "施蒂里亚金牌", "spalt-select": "施帕特精选", tettnanger: "泰特南" };
 const adjuncts = { none: "原味", cocoa: "可可碎", coffee: "咖啡", cherry: "樱桃", chili: "辣椒", coconut: "椰片", pretzel: "椒盐扭结饼干", custom:"自己添一种" };
 const inherited = { "": "沿用底方" };
 const locations = ["厨房 · 备料桌", "厨房 · 炉灶旁", "发酵角落 · 巡桶", "厨房 · 增味台", "厨房 · 分装台", "窗前 · 第一杯"];
@@ -294,7 +314,7 @@ function sceneHTML(context) {
   const mashDrop = f?.eventId === "mash-cool" && !(f.incidentResult && d.choices.mashRescue)
     ? batch.events.find(e => e.id === "mash-cool")?.magnitude || 0 : 0;
   const temperature = ["boiling", "hops", "boilover"].includes(shot) ? "100" :
-    shot === "mashing" ? (recipe.mash.steps[0].tempC - mashDrop).toFixed(1) :
+    shot === "mashing" ? (saccharificationRest(recipe).tempC - mashDrop).toFixed(1) :
     ["cooling", "pitching"].includes(shot) ? (recipe.fermentation.steps[0].tempC + (pitch?.effectiveMagnitude || 0)).toFixed(1) :
     art === "ferment" ? (recipe.fermentation.steps[0].tempC + (delta || 0)).toFixed(1) : "—";
   const picture = art==="taste" ? '<svg data-subject="first-cup" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice" role="img" aria-label="窗边的第一杯"><image href="assets/kitchen/first-cup.png" width="1536" height="1024"/><path d="M653 284Q766 278 880 284C896 338 920 424 834 472Q771 500 704 473C625 432 628 365 653 284Z" fill="'+wort(batch.metrics.srm)+'" opacity="'+Math.min(.89,.09+batch.metrics.srm*.022)+'" style="mix-blend-mode:multiply"/></svg>' : art === "tap" && !f?.shot ? taproomPlate(roomShot(context.t, batch, f)) : kitchenPlate(shot, temperature);
@@ -307,7 +327,7 @@ function sceneHTML(context) {
     prop += '<figure class="material-inset">' + materialArt(recipe.customAdjunct.profile.tone,recipe.customAdjunct.stage) + '</figure>';
   return '<section class="scene ' + (picture ? "painted " : "") + (f?.take ? "cut-in " : "") + (f?.calendar ? "calendar" : "") + '" aria-label="' + escape(art === "tap" ? "六头酒屋" : locations[d.step]) + '"><div class="art">' +
     (picture || sketch(art, batch.metrics.srm, recipe.adjunct === "none" ? "" : recipe.adjunct, recipe.packaging).replace('<svg ', '<svg preserveAspectRatio="xMidYMid slice" ')) +
-    '<span class="batch-tag">' + escape(beerName(d)) + "</span>" + prop + "</div>" +
+    '<span class="batch-tag">' + escape(d.step === 0 && !d.picked && !f ? "待写的酒单" : beerName(d)) + "</span>" + prop + "</div>" +
     (f?.take ? '<div class="take-title">' + escape(f.take) + "</div>" : "") + "</section>";
 }
 function addAt(f){return !f?.incidentResult && !f?.choice && ({boiling:"boil",pitching:"pitch","fermentation-day":"active",active:"active"})[f?.shot];}
@@ -380,7 +400,14 @@ function crossfade(ghost) {
   });
 }
 const grainImages=["assets/ingredients/grain-pale.png","assets/ingredients/grain-gold.png","assets/ingredients/grain-amber.png","assets/ingredients/grain-dark.png"];
-function maltTray(r){return '<div class="malt-tray">'+r.fermentables.map(g=>{const id=g.fermentableId,n=/roast|black|chocolate/.test(id)?3:/crystal|cara/.test(id)?2:/munich|vienna|otter|pale-ale/.test(id)?1:0;return '<figure><img src="'+grainImages[n]+'" alt=""><figcaption>'+escape(malts[id]||({"flaked-oats":"燕麦片","wheat-malt":"小麦麦芽","roasted-barley":"烘烤大麦","black-malt":"黑麦芽",chocolate:"巧克力麦芽"}[id])||id)+' · '+g.weightKg.toFixed(2)+' kg</figcaption></figure>';}).join("")+'</div>';}
+function maltTray(r) {
+  return '<div class="malt-tray">' + r.fermentables.map(({fermentableId: id, weightKg}) => {
+    const shade = /roast|black|chocolate|carafa|special-b|candi-dark/.test(id) ? 3 :
+      /crystal|melanoidin|aromatic|munich-dark/.test(id) ? 2 : /munich|vienna|otter|pale-ale|smoked/.test(id) ? 1 : 0;
+    return '<figure><img src="' + grainImages[shade] + '" alt=""><figcaption>' + escape(grainNames[id] || id) +
+      ' · ' + weightKg.toFixed(2) + ' kg</figcaption></figure>';
+  }).join("") + '</div>';
+}
 function formHTML(stage, d) {
   const o = d.options, c = d.choices;
   // Preserve temporarily invalid edits across refresh without asking the engine
@@ -390,18 +417,17 @@ function formHTML(stage, d) {
   catch { r = batchOf(state.draft).recipe; }
   const dry = r.hops.find((h) => h.use === "dryHop");
   const fields = [
-    () => '<div class="radio-cards">' + Object.entries(styles).map(([id, name]) =>
-      '<label class="radio-card"><input required type="radio" name="preset" value="' + id + '" ' + (d.picked && d.preset === id ? "checked" : "") + ">" + name + "</label>").join("") + '</div><div class="fields">' +
+    () => recipePicker(d) + (hasPickedRecipe(d) ? '<div class="fields">' +
       select("这一锅的量", "o.volumeL", { 10: "10 L", 20: "20 L", 25: "25 L", 30: "30 L", 40: "40 L", 45: "45 L", 50: "50 L" }, o.volumeL) +
       field("写个酒名", '<input name="name" maxlength="32" placeholder="' + escape(styles[d.preset]) + '" value="' + escape(d.name) + '">') +
-      '</div>',
+      '</div>' : ""),
     () => '<h3>这桶的配料 · '+r.batchVolumeL+' L</h3>'+maltTray(r)+'<div class="fields">'+
       select("基础麦芽", "o.maltId", { ...inherited, ...malts }, o.maltId ?? "") +
       select("水质", "o.waterId", { ...inherited, ...waters }, o.waterId ?? "") +
       select("酵母", "o.yeastId", { ...inherited, ...yeasts }, o.yeastId ?? "") +
       select("拼配麦芽", "o.specialtyMaltId", { "": "沿用底方", "wheat-malt": "小麦麦芽", "flaked-oats": "燕麦片", "roasted-barley": "烘烤大麦", "black-malt": "黑麦芽", chocolate: "巧克力麦芽" }, o.specialtyMaltId ?? "") +
-      numeric("置换基础麦芽 · %", "o.specialtyPct", o.specialtyPct ?? 5, 0, 30) + '</div>'+'<div class="dose-sheet">'+ingredientsPage(["hops","yeast"],d.seed)+'<p>'+r.hops.map(h=>escape(hops[h.hopId]||h.hopId)+" "+Number(h.grams.toFixed(2))+" g").join(" ／ ")+'</p><p>'+escape(yeasts[r.fermentation.yeastId]||r.fermentation.yeastId)+' · 干酵母备料估算 '+Number((r.batchVolumeL*(r.fermentation.pitchRate==="over"?1:.6)).toFixed(1))+' g</p></div><div class="fields">'+
-      numeric("糖化温度 · °C", "o.mashC", o.mashC ?? r.mash.steps[0].tempC, 55, 75) +
+      numeric("置换基础麦芽 · %", "o.specialtyPct", o.specialtyPct ?? 5, 0, 30) + '</div>'+'<div class="dose-sheet">'+ingredientsPage(["hops","yeast"],d.seed)+(r.kettleSeasonings ? '<p>锅内调味 · '+kettleDoses(r)+'</p>' : '')+'<p>'+r.hops.map(h=>escape(hops[h.hopId]||h.hopId)+" "+Number(h.grams.toFixed(2))+" g").join(" ／ ")+'</p><p>'+escape(yeasts[r.fermentation.yeastId]||r.fermentation.yeastId)+' · 干酵母备料估算 '+Number((r.batchVolumeL*(r.fermentation.pitchRate==="over"?1:.6)).toFixed(1))+' g</p></div><div class="fields">'+
+      numeric("糖化温度 · °C", "o.mashC", o.mashC ?? saccharificationRest(r).tempC, 55, 75) +
       numeric("主发酵设定 · °C", "o.fermentC", o.fermentC ?? r.fermentation.steps[0].tempC, 5, 40) +
       yesno("投料", "c.precision", "逐一称重", "凭手感", c.precision) +
       yesno("桶与管线", "c.sanitation", "认真清洁消毒", "匆匆冲洗", c.sanitation) +
@@ -426,7 +452,7 @@ function formHTML(stage, d) {
   ];
   const illustrations = stage === 0 ? ""
     : stage === 3 && o.adjunct !== "custom" ? ingredientsPage(["fruit"], d.seed) : "";
-  const controls=fields[stage]();if(stage===0){const cut=controls.indexOf('<div class="fields">');return controls.slice(0,cut)+(d.picked?illustrations+controls.slice(cut):"");}return illustrations+controls;
+  return illustrations + fields[stage]();
 }
 function customForm(o) {
   if(o.adjunct!=="custom") return "";
@@ -447,7 +473,7 @@ function editPanel() {
   return panel(stage === 0 ? "今天酿什么？" : stages[stage], '<p class="foam-note">' + prompts[stage] +
     '</p><form id="edit-form">' + formHTML(stage, draft) +
     '<p id="form-error" class="error" role="alert">' + escape(error || "") + '</p><div class="panel-actions">' +
-    btn("先合上", "close") + '<button class="choice primary" type="submit">' + (state.overlay.when?"加进去，接着酿":submits[stage]) + "</button></div></form>");
+    btn("先合上", "close") + '<button class="choice primary" type="submit"' + (stage === 0 && !hasPickedRecipe(draft) ? " disabled" : "") + '>' + (state.overlay.when?"加进去，接着酿":submits[stage]) + "</button></div></form>");
 }
 function materialReport(a) {
   if (!a) return "";
@@ -543,8 +569,9 @@ function journalPanel() {
 }
 function recipeSummary(d) {
   const { recipe, batch } = batchOf(d);
-  const malt = recipe.fermentables.map((m) => escape(m.fermentableId) + " " + m.weightKg.toFixed(2) + " kg").join("、");
-  return '<p>麦芽 · ' + malt + '</p><p>主发酵设定 · ' + recipe.fermentation.steps[0].tempC + " °C</p><p>" +
+  const malt = recipe.fermentables.map((m) => escape(grainNames[m.fermentableId] || m.fermentableId) + " " + m.weightKg.toFixed(2) + " kg").join("、");
+  const spices = kettleDoses(recipe);
+  return '<p>谷物与糖 · ' + malt + '</p>' + (spices ? '<p>锅内调味 · ' + spices + '</p>' : '') + '<p>主发酵设定 · ' + recipe.fermentation.steps[0].tempC + " °C</p><p>" +
     (d.choices.temperatureControl ? "已接温控" : "随室温发酵") + " · " + (d.choices.sanitation ? "认真清洁消毒" : "匆匆冲洗") +
     "</p>" + batch.events.filter((event) => (event.stage === "mash" && d.step > 1) || (event.stage === "fermentation" && d.inspected) || (event.stage === "packaging" && d.step === 5)).map((event) =>
       "<p>" + escape(event.text) + "</p>").join("");
@@ -649,6 +676,7 @@ function openJournal(tab = "batch") {
 }
 function commitForm() {
   const d = readForm(), stage = state.overlay.stage;
+  if (stage === 0 && !hasPickedRecipe(d)) throw Error("先挑一款底方。");
   if(state.overlay.when){batchOf(d);d.addedAt=state.overlay.when;delete d.adjudication;state.draft=d;state.history.push({title:"临时加料",speaker:"我",text:"加入 "+d.options.customAdjunct.name+"，"+d.options.customAdjunct.grams+" 克。"});state.overlay=null;
     const feedback=frame("把 "+d.options.customAdjunct.grams+" 克"+d.options.customAdjunct.name+"加了进去。记好这一笔，接着酿。",{art:"adjunct",additionShot:true,take:"这一回的投料"});
     if(state.story){state.story.frames.splice(state.story.index+1,0,feedback);logCurrent();state.story.index++;}else play("熟成加料",[feedback]);
@@ -670,10 +698,14 @@ function commitForm() {
     frames.push(...incidentFrames(d, ["mash-cool"]));
     frames.push(frame("慢慢过滤，把麦汁收起来。", { art: "mash", shot: "mashing",detail:"filter" }));
     frames.push(...incidentFrames(d, ["filter-slow"]));
+    if (recipe.kettleSoured)
+      frames.push(frame("过滤好的麦汁先在锅里酸化。等酸味到了，再升温煮沸。", { art: "mash", shot: "kitchen-day", take: "锅内酸化" }));
     frames.push(frame("麦汁沸腾起来，锅沿的泡沫升了上来。", { art: "mash", shot: "boiling" }));
     frames.push(...incidentFrames(d, ["boil-over"]));
     if (recipe.hops.some(h => h.use !== "dryHop" && h.grams > 0))
       frames.push(frame("按热端日程投花，让香气从蒸汽里升起来。", { art: "mash", shot: "hops" }));
+    if (recipe.kettleSeasonings)
+      frames.push(frame("临近煮沸结束，把" + kettleDoses(recipe) + "添进锅里。", { art: "mash", shot: "boiling", take: "锅内调味" }));
     frames.push(frame("接好冷却盘管，等麦汁降到投酵温度。", { art: "mash", shot: "cooling" }));
     frames.push(...incidentFrames(d, ["pitch-warm"]));
     frames.push(frame("开泵，让冷却后的麦汁沿管子进入发酵罐。", { art: "ferment", shot: "transfer" }));
@@ -955,6 +987,7 @@ app.addEventListener("change", async (event) => {
     }
     if (input.closest("#edit-form")) {
       const pending = readForm();
+      if (input.name === "recipeFamily") pending.picked = false;
       if (input.name === "preset") {
         pending.picked=true;pending.options = { baselineVersion:pending.options.baselineVersion, volumeL: pending.options.volumeL, processVersion: pending.options.processVersion ?? 1 };
         pending.benchmark = "";
@@ -962,11 +995,11 @@ app.addEventListener("change", async (event) => {
       if (input.name === "o.extraHopUse") delete pending.options.extraHopTime;
       state.overlay.draft = pending;
       save();
-      if (input.name === "preset" || ["o.hopId","o.yeastId","o.dryHopGrams","o.specialtyPct","o.extraHopId","o.extraHopGrams"].includes(input.name) || input.name === "o.maltId" || input.name === "o.specialtyMaltId" || input.name === "o.extraHopUse" || input.name === "o.adjunct") {
+      if (input.name === "recipeFamily" || input.name === "preset" || ["o.hopId","o.yeastId","o.dryHopGrams","o.specialtyPct","o.extraHopId","o.extraHopGrams"].includes(input.name) || input.name === "o.maltId" || input.name === "o.specialtyMaltId" || input.name === "o.extraHopUse" || input.name === "o.adjunct") {
         const open = [...app.querySelectorAll("details")].map((el) => el.open);
         render(false);
         app.querySelectorAll("details").forEach((el, i) => { el.open = !!open[i]; });
-        app.querySelector('[name="' + input.name + '"]' + (input.name === "preset" ? ":checked" : ""))?.focus();
+        app.querySelector('[name="' + input.name + '"]' + (input.type === "radio" ? ":checked" : ""))?.focus();
       }
     }
   } catch (error) { notice("没有读入这次修改。" + error.message); }

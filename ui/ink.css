@@ -141,3 +141,23 @@ button[class],.tap span,.radio-card {font-family:var(--pen);font-weight:700;lett
 @media(orientation:portrait){.scene .art img.kitchen-photo,.scene .art .taproom-photo{object-fit:cover;object-position:var(--subject,50%) 50%}.room .art .taproom-photo{inset:-3%;width:106%;height:106%;animation-name:portrait-gaze}}
 @keyframes portrait-gaze{from{transform:translate(-1%,.5%)}to{transform:translate(1%,-.6%) scale(1.025)}}
 input[type=number]{font-family:var(--pen);font-size:19px;font-weight:bold;letter-spacing:.025em;border-radius:14px 9px 17px 11px / 9px 15px 10px 16px}.metric-row{font:700 19px var(--pen);transform:rotate(-.7deg)}
+
+/* The shelf keeps the full set reachable with two choices on a small screen. */
+.recipe-shelf { margin: 0 0 16px; padding: 0; border: 0; min-width: 0; }
+.recipe-shelf legend { margin: 0 0 9px; padding: 0; color: var(--green); font-size: 14px; font-weight: 650; }
+.family-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+.family-tab { position: relative; display: block; min-width: 0; cursor: pointer; }
+.family-tab input { position: absolute; margin: 0; width: 1px; height: 1px; min-height: 0; opacity: 0; }
+.family-tab span { display: grid; place-items: center; min-height: 44px; padding: 5px; background: #e4dfce; color: #344436; border-radius: 7px 9px 6px 8px; font: 600 16px/1.25 var(--pen); }
+.family-tab input:checked + span { background: #3a513d; color: #fff9e7; }
+.family-tab input:focus-visible + span { outline: 3px solid #a65724; outline-offset: 1px; }
+.recipe-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.recipe-leaf { min-width: 0; margin: 0; }
+.recipe-leaf input { flex: none; }
+.recipe-leaf b, .recipe-leaf small { display: block; }
+.recipe-leaf small { font: 13px/1.4 system-ui,sans-serif; color: #465244; }
+@media(max-width: 480px) {
+  .family-tab span { font-size: 15px; }
+  .recipe-grid { grid-template-columns: minmax(0,1fr); }
+  .recipe-leaf { padding-block: 7px; }
+}

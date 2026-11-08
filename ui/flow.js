@@ -1,11 +1,9 @@
 import { makeRecipe, brew } from "../core/brew.js";
 import { simulateNight } from "../core/taproom.js";
 
-export const styles = {
-  "hazy-ipa": "浑浊 IPA", "west-coast-ipa": "西岸 IPA",
-  "house-pale-ale": "美式淡色艾尔", "czech-lager": "捷克淡色拉格",
-  "imperial-stout": "帝国世涛", "sour-ipa": "酸 IPA",
-};
+import { RECIPE_CATALOG } from "../core/recipes-catalog.js";
+
+export const styles = Object.fromEntries(RECIPE_CATALOG.map(r => [r.id,r.name]));
 export const stages = ["写酒单", "糖化煮沸", "看发酵桶", "加点味道", "分装", "尝第一杯"];
 export const packs = { keg: "生啤桶", bottle: "玻璃瓶", can: "易拉罐" };
 export const beerName = (d) => d.name || styles[d.preset];

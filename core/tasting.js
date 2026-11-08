@@ -1,3 +1,4 @@
+import { STYLE_BENCHMARKS } from "./style-benchmarks.js";
 import { finishAdjunct } from "./adjuncts.js";
 
 // Packaged-beer predictions are relative teaching scales, not assay results.
@@ -152,17 +153,6 @@ const styles = {
     [0, 1.6],
     [0, 2.5],
   ],
-  lager: [
-    "4A 慕尼黑淡色拉格",
-    [3, 5],
-    [16, 22],
-    [4.7, 5.4],
-    [0, 3.5],
-    [1, 4.5],
-    [2, 6],
-    [0, 1],
-    [0, 2.5],
-  ],
   "czech-pilsner": [
     "3B 捷克优质淡色拉格",
     [3.5, 6],
@@ -219,6 +209,29 @@ const styles = {
     [0, 3],
   ],
 };
+// Game sensory bands in order: hop aroma, perceived bitterness, body, roast, acidity.
+const classicSensoryBands = {
+  "english-bitter": [[0,5],[3,7],[2,6],[0,1.5],[0,2]],
+  marzen: [[0,3],[1.5,5],[3,7],[0,1.5],[0,2]],
+  "dry-stout": [[0,3.5],[3,8],[2,6],[5,10],[0,2.5]],
+  "milk-stout": [[0,3.5],[0.8,5],[5,10],[3,9],[0,2]],
+  saison: [[0,6.5],[2.5,8],[0.5,5],[0,1.5],[0,4]],
+  dubbel: [[0,3.5],[1,5],[3,7],[0,2],[0,2]],
+  hefeweizen: [[0,3],[0.5,4],[2,7],[0,1],[0,2]],
+  rauchbier: [[0,3],[1.5,5],[3,7],[0,2.5],[0,2]],
+  "munich-helles": [[0,3.5],[1,4.5],[2,6],[0,1],[0,2.5]],
+  witbier: [[0,3],[0.5,4],[2,6],[0,1],[0,2]],
+  gose: [[0,3],[0,3.5],[1,5.5],[0,1],[3.5,8.5]],
+  "english-porter": [[0,4],[2,6.5],[2.5,7],[2,7],[0,2]],
+  tripel: [[0,5],[2.5,7],[1.5,6],[0,1],[0,2]],
+};
+for (const [id, bands] of Object.entries(classicSensoryBands)) {
+  const g = STYLE_BENCHMARKS[id];
+  // Retain the selectable ID used by existing Helles scorecards.
+  styles[id === "munich-helles" ? "lager" : id] = [
+    g.code + " " + g.name, g.colorSRM, g.bitternessIBU, g.alcoholABV, ...bands,
+  ];
+}
 const aliases = {
   "house-pale-ale": "apa",
   "czech-lager": "czech-pilsner",
@@ -244,7 +257,15 @@ STYLE_OPTIONS.push({ id: shvId, name: "30A 香料、草本或蔬菜啤酒" });
 const distinctiveFamilies = new Set(["allium", "pepperHeat", "savoury"]);
 const shvFamilies = new Set([...distinctiveFamilies, "herbSpice", "citrusPeel", "coffeeCocoa"]);
 
-function assess(id, m, s, notes, additions, baseId) {
+// Relative game deductions for characteristic cues absent from the finished glass.
+const definingCues = {
+  rauchbier: [/木烟|烟熏|烟香/, "木烟香很难辨认"],
+  hefeweizen: [/香蕉|丁香/, "香蕉和丁香的酵母香都很弱"],
+  gose: [/咸/, "收口尝不出预期的微咸"],
+  witbier: [/橙|芫荽|柑橘/, "柑橘和香料的特征都很弱"],
+};
+
+function assess(id, m, s, notes, additions, baseId, perceived) {
   const specialty = [shvId, "30A", "30a"].includes(id);
   const declaredBase = specialty ? baseId : id;
   const style = styles[aliases[declaredBase] ?? declaredBase];
@@ -267,6 +288,8 @@ function assess(id, m, s, notes, additions, baseId) {
     characterLoss = strength - 0.9;
     characterComment = `「${strongest.text}」突出，偏离这款经典风格的香味轮廓`;
   }
+  const defining = definingCues[declaredBase];
+  const missingCue = defining && !perceived.some(text => defining[0].test(text)) ? defining[1] : "";
   const colourMiss = colour ? outside(m.srm, colour) : 0;
   const ibuMiss = ibu ? outside(m.ibu, ibu) : 0;
   const abvMiss = abv ? outside(m.abv, abv) : 0;
@@ -278,7 +301,7 @@ function assess(id, m, s, notes, additions, baseId) {
   const gasMiss = outside(s.carbonation, [2.5, 8]);
   const faults = s.stale + s.offFlavour;
   const score = (max, loss) => Math.round(bound(max - loss, 0, max));
-  const flavourMiss = bitterMiss + roastMiss + acidMiss;
+  const flavourMiss = bitterMiss + roastMiss + acidMiss + (missingCue ? 1.5 : 0);
   const scores = [
     ["香气", 12, 1 + aromaMiss * 0.85 + faults * 0.7 + characterLoss * 0.65],
     ["外观", 3, Math.min(2, colourMiss * 0.23) + gasMiss * 0.25],
@@ -321,7 +344,7 @@ function assess(id, m, s, notes, additions, baseId) {
   ]
     .filter(([n]) => n > 0.12)
     .sort((a, b) => b[0] - a[0]);
-  const comments = [characterComment, ...notes, ...shifts.map((x) => x[1])].filter(Boolean);
+  const comments = [characterComment, missingCue, ...notes, ...shifts.map((x) => x[1])].filter(Boolean);
   return {
     name,
     ...(characterComment ? { adjunctFit: { note: strongest?.text ?? "", strength, comment: characterComment } } : {}),
@@ -347,6 +370,47 @@ function readOffFlavours(batch) {
     if (risk > 4.5) flags.push({ text, strength: bound((risk - 3) * 0.8) });
   }
   return flags.sort((a, b) => b.strength - a.strength);
+}
+
+// Game intensities. Yeast character follows the fermented axes; toast, smoke and
+// roast depend on the grist actually used, even if the player changes the label.
+function recipeCharacter(recipe, s, warmDays) {
+  const grist = recipe.fermentables ?? [];
+  const total = grist.reduce((sum, f) => sum + f.weightKg, 0);
+  const share = (...ids) => total ? grist.reduce((sum, f) =>
+    sum + (ids.includes(f.fermentableId) ? f.weightKg : 0), 0) / total : 0;
+  const yeast = recipe.fermentation?.yeastId;
+  const darkFruit = share("candi-dark", "special-b") >= 0.04;
+  const yeastNotes = {
+    hefeweizen: ["香蕉", "丁香"],
+    saison: ["梨皮", "白胡椒"],
+    "belgian-abbey": [darkFruit ? "葡萄干" : "熟梨", "丁香"],
+  }[yeast];
+  const smoked = share("smoked-malt");
+  const roasted = share("roasted-barley");
+  const chocolate = share("chocolate", "pale-chocolate");
+  const toast = share("vienna", "munich-light", "munich-dark", "melanoidin");
+  const aromas = [
+    { text: yeastNotes?.[0] ?? "熟桃", strength: s.fruitEsters * 0.76 },
+    { text: "木烟", strength: bound(smoked * 16) },
+    { text: "烤面包皮", strength: (s.malt ?? 0) * toast * 1.3 },
+    { text: "新鲜面包芯", strength: (s.malt ?? 0) * (1 - toast) * 0.78 },
+    { text: "麦芽饼干", strength: share("maris-otter") * (s.malt ?? 0) * 1.2 },
+    { text: "焦糖", strength: s.caramel ?? 0 },
+  ];
+  const roastLabel = roasted > chocolate ? "黑咖啡" : chocolate > 0 ? "黑巧克力" : "烤面包边";
+  aromas.push({ text: roastLabel, strength: s.roast });
+  if (yeastNotes) aromas.push({ text: yeastNotes[1], strength: Math.max(0, (s.phenols ?? 0) - smoked * 9.5) });
+  const finish = [];
+  if (share("lactose") > 0.025 && s.sweetness >= 5) finish.push("舌面留着柔和的甜味");
+  for (const {id, gramsPerL} of recipe.kettleSeasonings ?? []) {
+    if (id === "salt" && gramsPerL >= 0.12) {
+      finish.push(gramsPerL > 1.3 ? "舌尖的咸味很突出" : "咽下去才觉出一点咸");
+    }
+    const spice = { coriander: "芫荽籽", "orange-peel": "苦橙皮" }[id];
+    if (spice) aromas.push({ text: spice, strength: bound(gramsPerL * 13 * Math.exp(-warmDays * 0.002)) });
+  }
+  return { aromas, finish };
 }
 
 export function taste(batch, options = {}) {
@@ -380,7 +444,8 @@ export function taste(batch, options = {}) {
   if (addition) {
     for (const key of Object.keys(s)) s[key] = bound(charges.reduce((v,a)=>v+(a.axisWeights[key]??0),s[key]));
   }
-  const raw = batch.descriptors ?? [];
+  const seasonings = new Set(recipe.kettleSeasonings?.map(dose => dose.id));
+  const raw = (batch.descriptors ?? []).filter(tag => !seasonings.has(tag));
   const extraTags = raw.filter(
     (tag) =>
       ![
@@ -439,12 +504,8 @@ export function taste(batch, options = {}) {
       text: labels[tag] ?? tag,
       strength: 3.6 * Math.exp(-warmDays * 0.0005),
     });
-  candidates.push(
-    { text: "熟桃", strength: s.fruitEsters * 0.76 },
-    { text: "烤面包边", strength: s.roast },
-    { text: "新鲜面包芯", strength: (s.malt ?? 0) * 0.78 },
-    { text: "焦糖", strength: s.caramel ?? 0 },
-  );
+  const character = recipeCharacter(recipe, s, warmDays);
+  candidates.push(...character.aromas);
   if (s.stale > 2.5)
     candidates.push({ text: "旧纸盒", strength: s.stale * 1.3 });
   candidates.push(...off);
@@ -486,6 +547,7 @@ export function taste(batch, options = {}) {
   const afterNotes = [...new Set([
     ...additions.map(note => note.text),
     ...orderedExtras.map(tag => accents[tag]).filter(Boolean),
+    ...character.finish,
   ])];
   const finishNotes = afterNotes.slice(0, 2).map(text => {
     const cue = additions.find(note => note.text === text);
@@ -565,6 +627,6 @@ export function taste(batch, options = {}) {
       max: 10,
       anchors: anchors.map(([value, label]) => ({ value, label })),
     })),
-    bjcp: assess(styleId, m, s, flags, styleNotes, recipe.styleId ?? recipe.presetId ?? "apa"),
+    bjcp: assess(styleId, m, s, flags, styleNotes, recipe.styleId ?? recipe.presetId ?? "apa", [...distinct, ...afterNotes]),
   };
 }

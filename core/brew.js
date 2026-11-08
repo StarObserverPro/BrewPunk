@@ -1,6 +1,6 @@
 import { normalizeAdjunct, resolveAdjunct, finishAdjunct } from "./adjuncts.js";
 import { referenceBaseline } from "./baseline.js";
-import { buildExample } from "../vendor/brewlab/recipes.js";
+import { RECIPE_CATALOG, buildCatalogRecipe } from "./recipes-catalog.js";
 import { buildContext, recipeSrm } from "../vendor/brewlab/simulate.js";
 import { computeHopLoad, computeSensory } from "../vendor/brewlab/sensory.js";
 import {
@@ -11,17 +11,10 @@ import {
 import { WATER_PROFILE_BY_ID } from "../vendor/brewlab/water.js";
 import { clamp } from "../vendor/brewlab/calculations.js";
 import { processEvents } from "./accidents.js";
-import { applyProcessChanges } from "./process.js";
+import { applyProcessChanges, saccharificationRest } from "./process.js";
 import { rng } from "./random.js";
 
-export const PRESETS = [
-  ["hazy-ipa", "浑浊 IPA"],
-  ["west-coast-ipa", "西海岸 IPA"],
-  ["house-pale-ale", "美式淡艾尔"],
-  ["czech-lager", "捷克浅色拉格"],
-  ["imperial-stout", "帝国世涛"],
-  ["sour-ipa", "酸 IPA"],
-].map(([id, name]) => ({ id, name }));
+export const PRESETS = RECIPE_CATALOG;
 
 function numberIn(number, min, max, label) {
   if (!Number.isFinite(number) || number < min || number > max)
@@ -36,7 +29,7 @@ export function makeRecipe(id, o = {}) {
   const preset = PRESETS.find((p) => p.id === id);
   member(id, preset, "配方");
   const sour = id === "sour-ipa";
-  const r = buildExample(sour ? "hazy-ipa" : id);
+  const r = buildCatalogRecipe(id);
   const volume = numberIn(o.volumeL ?? 25, 5, 50, "容量 L");
   const scale = volume / r.batchVolumeL;
   r.preBoilVolumeL *= scale;
@@ -79,11 +72,7 @@ export function makeRecipe(id, o = {}) {
     for (const h of late.length ? late : r.hops) h.hopId = o.hopId;
   }
   if (o.mashC != null) {
-    const rest =
-      r.mash.steps.find((s) =>
-        ["alpha", "beta", "saccharification"].includes(s.kind),
-      ) ?? r.mash.steps[0];
-    rest.tempC = numberIn(o.mashC, 55, 75, "糖化温度");
+    saccharificationRest(r).tempC = numberIn(o.mashC, 55, 75, "糖化温度");
   }
   if (o.fermentC != null) {
     r.fermentation.steps[0].tempC = numberIn(o.fermentC, 5, 40, "发酵温度");
@@ -157,7 +146,7 @@ export function makeRecipe(id, o = {}) {
     name: preset.name,
     presetId: id,
     styleId: id,
-    kettleSoured: sour,
+    kettleSoured: sour || id === "gose",
     packaging: member(
       packaging,
       ["keg", "bottle", "can"].includes(packaging),
@@ -293,7 +282,7 @@ export function brew(recipe, seed = 1, choices = {}) {
     r.batchVolumeL;
   sensory.fruitEsters += Math.min(1.2, 0.12 * activeLoad);
   sensory.acidity += (r.kettleSoured ? 4.2 : 0) + magnitude("wild-acid");
-  const descriptors = [...aroma.descriptors];
+  const descriptors = [...(r.kettleSeasonings ?? []).filter(s => s.gramsPerL > 0).map(s => s.id), ...aroma.descriptors];
   if (!["none", "custom"].includes(r.adjunct)) descriptors.unshift(r.adjunct);
   if (r.adjunct === "coffee") sensory.roast += 1.7;
   if (r.adjunct === "cocoa") sensory.roast += 1;

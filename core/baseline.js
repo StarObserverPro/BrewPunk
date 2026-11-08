@@ -1,4 +1,5 @@
 import { getYeast } from '../vendor/brewlab/ingredients.js';
+import { STYLE_BENCHMARKS } from './style-benchmarks.js';
 import { rng } from './random.js';
 
 // IDs point to independently inspectable brewing records in docs/brewing-references.md.
@@ -9,10 +10,17 @@ export const BASELINE_REFERENCES = {
   'czech-lager': ['pilz'],
   'imperial-stout': ['star-maker'],
   'sour-ipa': ['hanella', 'lal-souring'],
+  ...Object.fromEntries(Object.entries(STYLE_BENCHMARKS).map(([id, g]) => [id, ['bjcp-' + g.code.toLowerCase()]])),
+  witbier: ['bjcp-24a', 'allagash-wit'],
+  gose: ['bjcp-23g', 'lal-souring'],
 };
 
-// Facts come from the named brewer or supplier. Ranges describe that source only.
+// Each record keeps the original recipe, brewer, supplier or style-guide scope.
 const REFERENCES = {
+  ...Object.fromEntries(Object.values(STYLE_BENCHMARKS).map(g => ['bjcp-' + g.code.toLowerCase(), {
+    scope: 'style-guide', source: g.source, use: '对照申报风格 ' + g.code + ' ' + g.name,
+    facts: { colorSRM: g.colorSRM, bitternessIBU: g.bitternessIBU, alcoholPctABV: g.alcoholABV },
+  }])),
   'sn-pale': {
     scope: 'recipe', source: 'https://sierranevada.com/blog/our-beer/pale-ale-homebrew-recipe',
     use: '对照经典美式淡艾尔的酒色与焦糖麦芽占比',

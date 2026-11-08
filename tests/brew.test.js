@@ -2,7 +2,41 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { brew, makeRecipe, PRESETS, sampleBrews } from "../core/brew.js";
 
-test("six small-batch presets replay identically and preserve recipe inputs", () => {
+import { RECIPE_FAMILIES, RECIPE_CATALOG } from "../core/recipes-catalog.js";
+
+test("every menu recipe has a unique id, a shelf and a distinguishing hint", () => {
+  assert.equal(RECIPE_CATALOG.length, 19);
+  assert.equal(new Set(RECIPE_CATALOG.map(r => r.id)).size, RECIPE_CATALOG.length);
+  for (const { id } of RECIPE_FAMILIES) assert.ok(RECIPE_CATALOG.filter(r => r.family === id).length >= 2);
+  for (const row of RECIPE_CATALOG) {
+    assert.ok(RECIPE_FAMILIES.some(f => f.id === row.family) && row.hint.length > 0);
+    assert.equal(makeRecipe(row.id).styleId, row.id);
+  }
+});
+
+test("Gose and Witbier carry intrinsic kettle seasonings through optional flavoring", () => {
+  for (const [id, seasoning] of [["gose", "salt"], ["witbier", "orange-peel"]]) {
+    for (const volumeL of [20, 40]) {
+      const recipe = makeRecipe(id, { volumeL, adjunct: "cherry" });
+      const batch = brew(recipe, 31);
+      assert.deepEqual(recipe.kettleSeasonings.map(s => s.id), [seasoning, "coriander"]);
+      for (const tag of [seasoning, "coriander", "cherry"]) assert.ok(batch.descriptors.includes(tag));
+      assert.equal(recipe.kettleSoured, id === "gose");
+    }
+  }
+});
+
+test("milk stout lactose remains in the finished beer", () => {
+  const recipe = makeRecipe("milk-stout");
+  const original = brew(recipe, 31).metrics;
+  recipe.fermentables = recipe.fermentables.filter(f => f.fermentableId !== "lactose");
+  const unsweetened = brew(recipe, 31).metrics;
+  assert.ok(original.fg - unsweetened.fg > 0.004);
+  assert.ok(Math.abs(original.abv - unsweetened.abv) < 0.05);
+  assert.ok(original.fg > brew(makeRecipe("dry-stout"), 31).metrics.fg);
+});
+
+test("all small-batch presets replay identically and preserve recipe inputs", () => {
   for (const { id } of PRESETS) {
     const recipe = makeRecipe(id);
     const saved = structuredClone(recipe);
