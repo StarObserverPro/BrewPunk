@@ -1,3 +1,7 @@
+import { materialArt } from "./adjunct-art.js";
+import { adjudicateDraft, voicePosts } from "./ai-client.js";
+import { compareAdjunct } from "../core/adjunct-comparison.js";
+import { offlineProfile } from "../core/adjuncts.js";
 import { taste, STYLE_OPTIONS } from "../core/tasting.js";
 import { sampleBrews } from "../core/brew.js";
 import { sampleTastings, packageCondition } from "../core/taproom.js";
@@ -22,7 +26,7 @@ const malts = { pilsner: "皮尔森", "pale-ale": "淡色艾尔", "maris-otter":
 const waters = { balanced: "均衡", "soft-pilsner": "软水", "hop-forward": "突出酒花", "malt-forward": "突出麦芽", "dark-alkaline": "深色酒用水" };
 const yeasts = { "american-ale": "美式艾尔", "neipa-ale": "新英格兰艾尔", "czech-lager": "捷克拉格", "kveik-voss": "沃斯农家酵母" };
 const hops = { citra: "西楚", mosaic: "马赛克", cascade: "卡斯卡特", simcoe: "西姆科", saaz: "萨兹" };
-const adjuncts = { none: "原味", cocoa: "可可碎", coffee: "咖啡", cherry: "樱桃", chili: "辣椒", coconut: "椰片", pretzel: "椒盐扭结饼干" };
+const adjuncts = { none: "原味", cocoa: "可可碎", coffee: "咖啡", cherry: "樱桃", chili: "辣椒", coconut: "椰片", pretzel: "椒盐扭结饼干", custom:"自己添一种" };
 const inherited = { "": "沿用底方" };
 const locations = ["厨房 · 备料桌", "厨房 · 炉灶旁", "发酵角落 · 巡桶", "厨房 · 增味台", "厨房 · 分装台", "窗前 · 第一杯"];
 const artStages = ["recipe", "mash", "ferment", "adjunct", "pack", "taste"];
@@ -92,7 +96,7 @@ function currentFrame() {
   const texts = {
     barrel: "与木材接触 " + batch.barrelDays + " 天后，把这段日子写回桶签。",
     yield: "记录实际可分装的 " + batch.yieldL.toFixed(2) + " L，把批签系好。",
-    cup: taste(batch, cupOptions(state.draft, recipe, batch)).note,
+    cup: state.draft.adjudication?.note || taste(batch, cupOptions(state.draft, recipe, batch)).note,
   };
   return { ...stored, text: texts[stored.dynamic] };
 }
@@ -123,9 +127,9 @@ function offerServiceIncident() {
   if (state.view !== "room" || state.story) return;
   const tap = state.taps[state.selected];
   if (!tap || batchOf(tap.d).recipe.processVersion < 2) return;
-  if (tap.serviceChoices?.[tap.night]?.chillLine !== undefined) return;
+  if (tap.serviceChoices?.[tap.night]?.chillLine !== undefined) {supplyNight(tap);return;}
   const event = delivery(tap).night.serviceEvents.find(e => e.session === tap.night && e.id === "tap-foam");
-  if (!event) return;
+  if (!event) {supplyNight(tap);return;}
   play("酒头的第一杯", [frame("第一杯泡沫特别多，接液杯很快就满了一层。", { art: "tap", take: "首杯泡沫", choice: "incident", eventId: "tap-foam" })]);
 }
 function chooseIncident(rescue) {
@@ -280,6 +284,8 @@ function sceneHTML(context) {
     art === "ferment" ? (recipe.fermentation.steps[0].tempC + (delta || 0)).toFixed(1) : "—";
   const picture = art === "tap" && !f?.shot ? taproomPlate(roomShot(context.t, batch, f)) : kitchenPlate(shot, temperature);
   if (picture) prop = "";
+  if (art === "adjunct" && recipe.customAdjunct && !f?.calendar)
+    prop += '<figure class="material-inset">' + materialArt(recipe.customAdjunct.profile.tone,recipe.customAdjunct.stage) + '</figure>';
   return '<section class="scene ' + (picture ? "painted " : "") + (f?.take ? "cut-in " : "") + (f?.calendar ? "calendar" : "") + '" aria-label="' + escape(art === "tap" ? "六头酒房" : locations[d.step]) + '"><div class="art">' +
     (picture || sketch(art, batch.metrics.srm, recipe.adjunct === "none" ? "" : recipe.adjunct, recipe.packaging).replace('<svg ', '<svg preserveAspectRatio="xMidYMid slice" ')) +
     '<span class="batch-tag">' + escape(beerName(d)) + "</span>" + prop + "</div>" +
@@ -309,7 +315,7 @@ function mainAction() {
   }
   const d = state.draft;
   const label = ["翻开酒单", "看看锅边的工艺单", d.inspected ? "去增味台" : "巡一巡发酵桶", "想添点什么", "把这一锅装起来", d.tasted ? "送去楼下酒房" : "尝第一杯"][d.step];
-  return '<div class="action-area">' + btn(label, "main", "main-action") +
+  return '<div class="action-area">' + btn(opening === d ? "正在尝这杯…" : label, "main", "main-action", opening === d ? "disabled" : "") +
     (d.step === 5 && d.tasted ? btn("翻看开杯笔记", "tasting", "subtle") : "") + "</div>";
 }
 function tapStrip() {
@@ -409,7 +415,7 @@ function formHTML(stage, d) {
   const fields = [
     () => '<div class="radio-cards">' + Object.entries(styles).map(([id, name]) =>
       '<label class="radio-card"><input type="radio" name="preset" value="' + id + '" ' + (d.preset === id ? "checked" : "") + ">" + name + "</label>").join("") + '</div><div class="fields">' +
-      select("这一锅的量", "o.volumeL", { 20: "20 L", 25: "25 L", 30: "30 L", 40: "40 L", 45: "45 L", 50: "50 L" }, o.volumeL) +
+      select("这一锅的量", "o.volumeL", { 10: "10 L", 20: "20 L", 25: "25 L", 30: "30 L", 40: "40 L", 45: "45 L", 50: "50 L" }, o.volumeL) +
       field("写个酒名", '<input name="name" maxlength="32" placeholder="' + escape(styles[d.preset]) + '" value="' + escape(d.name) + '">') +
       '</div><details><summary>翻到配料页</summary><div class="fields">' +
       select("基础麦芽", "o.maltId", { ...inherited, ...malts }, o.maltId ?? "") +
@@ -435,15 +441,27 @@ function formHTML(stage, d) {
       "</div></details>",
     () => "",
     () => '<div class="fields">' + select("放到桶里", "o.adjunct", adjuncts, o.adjunct ?? "none") +
-      select("木材接触与陈放", "o.barrelDays", { 0: "直接分装", 30: "一个月", 180: "半年", 365: "一年", 730: "两年" }, o.barrelDays ?? 0) + "</div>",
+      customForm(o) + select("木材接触与陈放", "o.barrelDays", { 0: "直接分装", 30: "一个月", 180: "半年", 365: "一年", 730: "两年" }, o.barrelDays ?? 0) + "</div>",
     () => '<div class="fields">' + select("这次用什么装", "o.packaging", packs, r.packaging) +
       yesno("转移方式", "c.closedTransfer", "密闭转移", "敞口转移", c.closedTransfer) +
       numeric("储存温度 · °C", "o.storageC", r.storageC, 0, 30) +
       numeric("分装后第几天开喝", "o.ageDays", r.ageDays, 0, 1095) + "</div>",
   ];
   const illustrations = stage === 0 ? ingredientsPage(["malt","hops","yeast"], d.seed)
-    : stage === 3 ? ingredientsPage(["fruit"], d.seed) : "";
+    : stage === 3 && o.adjunct !== "custom" ? ingredientsPage(["fruit"], d.seed) : "";
   return illustrations + fields[stage]();
+}
+function customForm(o) {
+  if(o.adjunct!=="custom") return "";
+  const a=o.customAdjunct||{name:"",preparation:"",grams:45,stage:"pitch"};
+  const tone=(a.profile || offlineProfile(a.name,a.preparation)).tone;
+  return '<div class="material-preview">'+materialArt(tone,a.stage)+'</div>'+
+    field("放点什么",'<input required name="x.name" maxlength="80" placeholder="例如大蒜" value="'+escape(a.name)+'">')+
+    field("怎么处理",'<input name="x.preparation" maxlength="120" placeholder="例如拍碎或整瓣烤熟" value="'+escape(a.preparation)+'">')+
+    numeric("投料（克）","x.grams",a.grams,0.01,50000)+
+    select("实际投入阶段","x.stage",{boil:"煮沸时",pitch:"接种时",active:"主发酵第 2 天",conditioning:"熟成开始"},a.stage)+
+    '<small class="material-dose">按这锅 '+o.volumeL+' L 折算为 <output id="material-dose">'+(a.grams/o.volumeL).toFixed(2)+'</output> g/L。选前期投料会按那一天重算。</small>';
+
 }
 function editPanel() {
   const { stage, draft, error } = state.overlay;
@@ -454,18 +472,45 @@ function editPanel() {
     '<p id="form-error" class="error" role="alert">' + escape(error || "") + '</p><div class="panel-actions">' +
     btn("先合上", "close") + '<button class="choice primary" type="submit">' + submits[stage] + "</button></div></form>");
 }
+function materialReport(a) {
+  if (!a) return "";
+  const levels=["无明显影响","轻微","明显","很强"];
+  const certainty={low:"推测",medium:"有一些依据",high:"较有把握"};
+  const action={neutral:"作用",inhibit:"抑制",accelerate:"促进"};
+  const items=a.profile.constituents.map((c,i)=>{
+    const budget=a.budgets[i];
+    const fraction=budget?.budget ? Math.round(100*budget.evolvedWeight/budget.budget) : 0;
+    return '<li><b>'+escape(c.name)+'</b> · '+certainty[c.confidence]+'<br>'+escape(c.basis)+' '+escape(c.route)+
+      '<br>直接味 '+escape(c.direct||"未辨明")+'（'+(100-fraction)+'%）'+
+      (c.evolved?'，转化味 '+escape(c.evolved)+'（'+fraction+'%）':'')+'。</li>';
+  }).join("");
+  return '<details><summary>这次增味</summary><p>'+escape(a.name)+' · '+a.grams+' g · '+a.doseGL.toFixed(2)+' g/L'+
+    (a.preparation?' · '+escape(a.preparation):'')+'</p><ul>'+items+'</ul>'+
+    (!items?'<p>这份材料还没有足够线索，暂时保留基酒风味。</p>':'')+
+    '<p>对酵母的'+action[a.profile.behaviour]+'：'+levels[a.tier]+
+    (a.profile.yeastMechanism?'。'+escape(a.profile.yeastMechanism)+'（'+certainty[a.profile.yeastConfidence]+'）':'')+'</p></details>';
+}
+function styleComparison(comparison) {
+  if(!comparison)return "";
+  const signed=x=>x>0?"+"+x:String(x);
+  return '<p>与未加料的同锅对照：总分 '+signed(comparison.totalDelta)+'，ABV '+signed(comparison.abvDelta)+' 个百分点。</p><p class="muted">'+
+    comparison.parts.map(p=>escape(p.label)+' '+signed(p.delta)).join(" · ")+'</p>';
+}
 function cupHTML(d) {
   const { recipe: r, batch: b } = batchOf(d);
   const cup = taste(b, cupOptions(d, r, b));
-  return '<h2>' + escape(beerName(d)) + '</h2><div class="metric-row"><span>' + b.metrics.abv.toFixed(1) + "% ABV</span><span>" + Math.round(b.metrics.ibu) + " IBU</span><span>" + Math.round(b.metrics.srm) +
-    " SRM</span></div><p>" + escape(cup.note) + "</p><p class='muted'>" + packs[r.packaging] + " · 分装后第 " + r.ageDays + " 天 · 储温 " + r.storageC + " °C</p>" +
+  const a = cup.customAdjunct;
+  const comp = compareAdjunct(d, b, cup, cupOptions(d, r, b));
+  const report = materialReport(a);
+  return '<h2>' + escape(beerName(d)) + '</h2>'+report+'<div class="metric-row"><span>' + b.metrics.abv.toFixed(1) + "% ABV</span><span>" + Math.round(b.metrics.ibu) + " IBU</span><span>" + Math.round(b.metrics.srm) +
+    " SRM</span></div><p>" + escape(d.adjudication?.note || cup.note) + "</p><p class='muted'>" + packs[r.packaging] + " · 分装后第 " + r.ageDays + " 天 · 储温 " + r.storageC + " °C</p>" +
     '<details><summary>把风味放到同一把尺上</summary>' + cup.axes.map((axis) =>
       '<div class="axis"><span>' + escape(axis.label) + "</span><span>" + axis.value + '</span><meter min="0" max="10" value="' + axis.value + '"></meter><small>' +
       axis.anchors.map((a) => escape(a.label) + " " + a.value).join(" ／ ") + "</small></div>").join("") +
     '</details><details><summary>风格对照 · ' + cup.bjcp.total + '/50</summary><p class="muted">按申报风格给出的游戏模拟评审</p>' +
     select("申报风格", "benchmark", { "": "按底方评判", ...Object.fromEntries(STYLE_OPTIONS.map((s) => [s.id, s.name])) }, d.benchmark) +
-    "<h3>" + escape(cup.bjcp.name) + "</h3><p>" + escape(cup.bjcp.comment) + "</p>" +
-    cup.bjcp.parts.map((p) => "<p>" + escape(p.label) + " · " + p.score + "/" + p.max + "</p>").join("") + "</details>";
+    "<h3>" + escape(cup.bjcp.name) + "</h3><p>" + escape(d.adjudication?.judgeComment || cup.bjcp.comment) + "</p>" +
+    styleComparison(comp) + cup.bjcp.parts.map((p) => "<p>" + escape(p.label) + " · " + p.score + "/" + p.max + "</p>").join("") + "</details>";
 }
 function postHTML(post) {
   return '<article class="post"><header><b>' + escape(post.name) + '</b><small class="muted">' + escape(post.time) +
@@ -597,6 +642,7 @@ function openJournal(tab = "batch") {
 }
 function commitForm() {
   const d = readForm(), stage = state.overlay.stage;
+  delete d.adjudication;
   batchOf(d);
   state.draft = d;
   resetResponses(d, stage);
@@ -624,7 +670,7 @@ function commitForm() {
     frames.push(frame("清洗台面，把干投日程夹在桶签背面。等发酵走起来，再来看看它。", { art: "ferment", shot: "cleaned", calendar: true }));
     frames.push(frame("窗外暗了。厨房只剩一盏工作灯，接下来就等桶里的动静。", { art: "mash", shot: "kitchen-night" }));
   } else if (stage === 3) {
-    frames.push(frame(recipe.adjunct === "none" ? "把砧板擦干净，今天就留住这锅酒原来的味道。" : "把" + adjuncts[recipe.adjunct] + "放到砧板上。处理好，再送进这一桶里。", { art: "adjunct", take: adjuncts[recipe.adjunct] }));
+    frames.push(frame(recipe.adjunct === "none" ? "把砧板擦干净，今天就留住这锅酒原来的味道。" : "把" + (recipe.customAdjunct?.name || adjuncts[recipe.adjunct]) + "放到砧板上。处理好，再送进这一桶里。", { art: "adjunct", take: adjuncts[recipe.adjunct] }));
     if (recipe.barrelDays) {
       frames.push(...incidentFrames(d, ["barrel-strong"]));
       frames.push(frame("", { art: "adjunct", shot: "sampling", calendar: true, dynamic: "barrel" }));
@@ -648,12 +694,52 @@ function readForm() {
   for (const [name, value] of new FormData(form)) {
     const [group, key] = name.split(".");
     if (!key) { draft[name] = value; continue; }
-    const target = group === "o" ? draft.options : draft.choices;
+    const target = group === "x" ? (draft.options.customAdjunct??={}) : group === "o" ? draft.options : draft.choices;
     const input = form.elements.namedItem(name);
     if (value === "") delete target[key];
     else target[key] = group === "c" ? value === "yes" : (input.type === "number" || ["volumeL", "barrelDays"].includes(key)) ? Number(value) : value;
   }
+  if (draft.options.adjunct!=="custom") delete draft.options.customAdjunct;
+  else if (draft.options.customAdjunct) {
+    const a=draft.options.customAdjunct, prev=state.overlay.draft.options.customAdjunct;
+    if(a.name!==prev?.name||a.preparation!==prev?.preparation) delete a.profile;
+  }
   return draft;
+}
+let opening = null;
+async function openFirstCup(d) {
+  if (opening===d)return;
+  opening=d;
+  const benchmark=d.benchmark;
+  render(false);
+  try {
+    let result=null;
+    if(!d.adjudication){
+      d.adjudication={status:"local"}; save();
+      result=await adjudicateDraft(d,batchOf(d).batch);
+    }
+    if(state.draft!==d || d.step!==5 || d.tasted || state.story) return;
+    if(result){
+      if(result.profile && d.options.customAdjunct)d.options.customAdjunct.profile=result.profile;
+      d.adjudication={status:"luna",note:result.note,judgeComment:benchmark===d.benchmark?result.judgeComment:null};
+    }
+    opening=null;
+    play("第一杯", tastingFrames(d), {tasted:true});save();render();
+  } finally {opening=null;}
+}
+function supplyNight(tap){
+  if(!tap)return;
+  const day=tap.night; tap.voices??={};
+  if(Object.hasOwn(tap.voices,day))return;
+  tap.voices[day]=[];save();
+  const {batch,night}=delivery(tap);
+  voicePosts(batch,night.posts.filter(p=>p.session===day)).then(rows=>{
+    if(!rows)return;
+    const target=[...state.taps,...state.archive].find(t=>t && t.number===tap.number && t.d.seed===tap.d.seed);
+    if(!target)return;
+    target.voices[day]=rows;save();
+    if(state.view==="room" && state.taps[state.selected]===tap && tap.night===day) render(false);
+  });
 }
 function doAction(button) {
   const action = button.dataset.act;
@@ -682,7 +768,7 @@ function doAction(button) {
     else if (d.step === 2) {
       if (d.inspected) play("合上巡桶本", [frame("把温度计挂回桶边。砧板洗好了，看看今天想添点什么。", { art: "adjunct" })], { step: 3 });
       else inspectBucket();
-    } else if (!d.tasted) play("第一杯", tastingFrames(d), { tasted: true });
+    } else if (!d.tasted) void openFirstCup(d);
     else state.overlay = { type: "slots" };
     return;
   }
@@ -813,7 +899,7 @@ app.addEventListener("change", async (event) => {
     }
     if (input.name === "benchmark" || input.name?.startsWith("archive-benchmark-")) {
       const target = input.name === "benchmark" ? state.draft : state.archive[Number(input.name.split("-").at(-1))].d;
-      target.benchmark = input.value;
+      target.benchmark = input.value; if(target.adjudication) delete target.adjudication.judgeComment;
       save(); render();
       const detail = app.querySelector('select[name="' + input.name + '"]')?.closest("details");
       if (detail) detail.open = true;
@@ -827,13 +913,13 @@ app.addEventListener("change", async (event) => {
     if (input.closest("#edit-form")) {
       const pending = readForm();
       if (input.name === "preset") {
-        pending.options = { volumeL: pending.options.volumeL, processVersion: pending.options.processVersion ?? 1 };
+        pending.options = { baselineVersion:pending.options.baselineVersion, volumeL: pending.options.volumeL, processVersion: pending.options.processVersion ?? 1 };
         pending.benchmark = "";
       }
       if (input.name === "o.extraHopUse") delete pending.options.extraHopTime;
       state.overlay.draft = pending;
       save();
-      if (input.name === "preset" || input.name === "o.extraHopUse") {
+      if (input.name === "preset" || input.name === "o.extraHopUse" || input.name === "o.adjunct") {
         const open = [...app.querySelectorAll("details")].map((el) => el.open);
         render(false);
         app.querySelectorAll("details").forEach((el, i) => { el.open = !!open[i]; });
@@ -841,6 +927,11 @@ app.addEventListener("change", async (event) => {
       }
     }
   } catch (error) { notice("没有读入这次修改。" + error.message); }
+});
+app.addEventListener("input",event=>{
+  if(event.target.name!=="x.grams")return;
+  const output=app.querySelector("#material-dose"), litres=state.overlay?.draft?.options.volumeL;
+  if(output && litres)output.textContent=(Number(event.target.value)/litres).toFixed(2);
 });
 document.addEventListener("keydown", (event) => {
   if (transitionBusy && ["Escape", " ", "Enter"].includes(event.key)) { event.preventDefault(); return; }

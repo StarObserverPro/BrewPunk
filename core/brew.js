@@ -1,3 +1,5 @@
+import { normalizeAdjunct, resolveAdjunct, finishAdjunct } from "./adjuncts.js";
+import { referenceBaseline } from "./baseline.js";
 import { buildExample } from "../vendor/brewlab/recipes.js";
 import { buildContext, recipeSrm } from "../vendor/brewlab/simulate.js";
 import { computeHopLoad, computeSensory } from "../vendor/brewlab/sensory.js";
@@ -148,6 +150,8 @@ export function makeRecipe(id, o = {}) {
   const packaging = o.packaging ?? "keg";
   const adjunct = o.adjunct ?? "none";
   return Object.assign(r, {
+    ...(o.baselineVersion === 1 ? { baselineVersion: 1 } : {}),
+    ...(o.customAdjunct ? { customAdjunct: normalizeAdjunct(o.customAdjunct) } : {}),
     processVersion: o.processVersion ?? 1,
     name: preset.name,
     presetId: id,
@@ -168,7 +172,7 @@ export function makeRecipe(id, o = {}) {
         "chili",
         "coconut",
         "pretzel",
-      ].includes(adjunct),
+      ].includes(adjunct) || (adjunct === "custom" && Boolean(o.customAdjunct)),
       "增味",
     ),
     ageDays: numberIn(o.ageDays ?? r.conditioning.days, 0, 1460, "包装后日龄"),
@@ -226,8 +230,24 @@ export function brew(recipe, seed = 1, choices = {}) {
       return segments;
     });
   }
+  const baseline = recipe.baselineVersion === 1 ? referenceBaseline(recipe, seed) : null;
+  const addition = r.customAdjunct ? resolveAdjunct(r.customAdjunct, r.batchVolumeL) : null;
+  if (baseline || addition) {
+    let day = 0;
+    r.fermentation.steps = r.fermentation.steps.flatMap(step => {
+      const before = addition ? clamp(addition.startDay - day, 0, step.days) : 0;
+      day += step.days;
+      const factor = baseline?.rateFactor ?? 1;
+      const segments = [];
+      if (before) segments.push({ ...step, days: before, rateFactor: factor });
+      if (before < step.days) segments.push({ ...step, days: step.days - before,
+        rateFactor: factor * (addition?.rateMultiplier ?? 1) });
+      return segments;
+    });
+  }
   const ctx = buildContext(r);
   const curve = ctx.attenuation.kinetics.curve;
+  const customAdjunct = addition ? finishAdjunct(addition, curve, { boilTimeMin: r.boilTimeMin, conditioningDays: process.barrelDays }) : null;
   const dryHopActivity = [];
   const hopLotFactors = {};
   const effectiveHops = r.hops.map((h) => {
@@ -277,7 +297,7 @@ export function brew(recipe, seed = 1, choices = {}) {
   sensory.fruitEsters += Math.min(1.2, 0.12 * activeLoad);
   sensory.acidity += (r.kettleSoured ? 4.2 : 0) + magnitude("wild-acid");
   const descriptors = [...aroma.descriptors];
-  if (r.adjunct !== "none") descriptors.unshift(r.adjunct);
+  if (!["none", "custom"].includes(r.adjunct)) descriptors.unshift(r.adjunct);
   if (r.adjunct === "coffee") sensory.roast += 1.7;
   if (r.adjunct === "cocoa") sensory.roast += 1;
   if (r.adjunct === "cherry") {
@@ -292,10 +312,17 @@ export function brew(recipe, seed = 1, choices = {}) {
     sensory.hopFlavour *= Math.exp(-r.barrelDays / 350);
     sensory.alcoholWarmth *= 1 - 0.12 * extract;
   }
+  // Retain the unsaturated base so each later glass can apply its own constituent weights.
+  const sensoryBeforeAdjunct = customAdjunct ? { ...sensory } : null;
+  for (const [axis, weight] of Object.entries(customAdjunct?.axisWeights ?? {})) {
+    sensory[axis] += weight;
+  }
   for (const k of Object.keys(sensory)) sensory[k] = clamp(sensory[k], 0, 10);
   const base = { keg: 0.025, can: 0.045, bottle: 0.07 }[r.packaging];
   return {
     seed,
+    ...(baseline ? { baseline } : {}),
+    ...(customAdjunct ? { customAdjunct, sensoryBeforeAdjunct } : {}),
     recipe: structuredClone(recipe),
     metrics: {
       og: ctx.gravity.og,

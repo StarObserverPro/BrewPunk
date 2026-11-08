@@ -1,3 +1,5 @@
+import { finishAdjunct } from "./adjuncts.js";
+
 // Packaged-beer predictions are relative teaching scales, not assay results.
 const bound = (x, low = 0, high = 10) => Math.max(low, Math.min(high, x));
 const round = (x) => Math.round(x * 10) / 10;
@@ -237,14 +239,38 @@ export const STYLE_OPTIONS = Object.entries(styles).map(([id, [name]]) => ({
   name,
 }));
 
-function assess(id, m, s, notes) {
-  const style = styles[aliases[id] ?? id];
-  if (!style) throw new RangeError("未知的申报风格 " + id);
-  const [name, colour, ibu, abv, hops, bitterness, body, roast, acid] = style;
+const shvId = "spice-herb-vegetable";
+STYLE_OPTIONS.push({ id: shvId, name: "30A 香料、草本或蔬菜啤酒" });
+const distinctiveFamilies = new Set(["allium", "pepperHeat", "savoury"]);
+const shvFamilies = new Set([...distinctiveFamilies, "herbSpice", "citrusPeel", "coffeeCocoa"]);
+
+function assess(id, m, s, notes, additions, baseId) {
+  const specialty = [shvId, "30A", "30a"].includes(id);
+  const declaredBase = specialty ? baseId : id;
+  const style = styles[aliases[declaredBase] ?? declaredBase];
+  if (!style) throw new RangeError("未知的申报风格 " + declaredBase);
+  const [baseName, colour, ibu, abv, hops, bitterness, body, roast, acid] = style;
+  const name = specialty ? `30A 香料、草本或蔬菜啤酒 · ${baseName}基底` : baseName;
+  const relevant = specialty ? shvFamilies : distinctiveFamilies;
+  const strongest = additions.filter(n => relevant.has(n.family)).sort((a, b) => b.strength - a.strength)[0];
+  const strength = strongest?.strength ?? 0;
+  let characterLoss = 0;
+  let characterComment = "";
+  if (specialty) {
+    // A recognisable ingredient and a recognisable beer base must survive together.
+    const upper = Math.min(3.6, 1.5 + 0.28 * Math.max(s.hopAroma, s.roast, s.malt ?? 0));
+    const excess = Math.max(0, strength - upper - 0.25);
+    characterLoss = Math.max(0, 1.1 - strength) * 2 + excess * 1.5;
+    characterComment = strength < 1.1 ? "申报的香料、草本或蔬菜特征难以辨认"
+      : excess > 0 ? `「${strongest.text}」盖过了基酒` : `「${strongest.text}」可辨，仍能尝出基酒`;
+  } else if (colour && strength > 0.9) {
+    characterLoss = strength - 0.9;
+    characterComment = `「${strongest.text}」突出，偏离这款经典风格的香味轮廓`;
+  }
   const colourMiss = colour ? outside(m.srm, colour) : 0;
   const ibuMiss = ibu ? outside(m.ibu, ibu) : 0;
   const abvMiss = abv ? outside(m.abv, abv) : 0;
-  const aromaMiss = outside(s.hopAroma, hops);
+  const aromaMiss = outside(s.hopAroma, specialty ? [Math.max(0, hops[0] - 1.5), hops[1]] : hops);
   const bitterMiss = outside(s.bitterness, bitterness);
   const bodyMiss = outside(s.body, body);
   const roastMiss = outside(s.roast, roast);
@@ -254,12 +280,12 @@ function assess(id, m, s, notes) {
   const score = (max, loss) => Math.round(bound(max - loss, 0, max));
   const flavourMiss = bitterMiss + roastMiss + acidMiss;
   const scores = [
-    ["香气", 12, 1 + aromaMiss * 0.85 + faults * 0.7],
+    ["香气", 12, 1 + aromaMiss * 0.85 + faults * 0.7 + characterLoss * 0.65],
     ["外观", 3, Math.min(2, colourMiss * 0.23) + gasMiss * 0.25],
     [
       "风味",
       20,
-      2 + flavourMiss * 1.35 + faults * 1.4 + Math.min(2, ibuMiss * 0.065),
+      2 + flavourMiss * 1.35 + faults * 1.4 + Math.min(2, ibuMiss * 0.065) + characterLoss,
     ],
     ["口感", 5, 0.4 + bodyMiss * 0.65 + gasMiss * 0.55],
     [
@@ -268,7 +294,7 @@ function assess(id, m, s, notes) {
       1 +
         (aromaMiss + flavourMiss + bodyMiss) * 0.38 +
         faults * 0.7 +
-        Math.min(2, abvMiss * 0.6),
+        Math.min(2, abvMiss * 0.6) + characterLoss * 0.45,
     ],
   ];
   const parts = scores.map(([label, max, loss]) => ({
@@ -295,9 +321,10 @@ function assess(id, m, s, notes) {
   ]
     .filter(([n]) => n > 0.12)
     .sort((a, b) => b[0] - a[0]);
-  const comments = [...notes, ...shifts.map((x) => x[1])];
+  const comments = [characterComment, ...notes, ...shifts.map((x) => x[1])].filter(Boolean);
   return {
     name,
+    ...(characterComment ? { adjunctFit: { note: strongest?.text ?? "", strength, comment: characterComment } } : {}),
     total: parts.reduce((sum, p) => sum + p.score, 0),
     parts,
     comment:
@@ -343,7 +370,15 @@ export function taste(batch, options = {}) {
     (excursion ? excursionDays * (2 ** ((excursion.tempC - 10) / 10) - 2 ** ((storageC - 10) / 10)) : 0);
   // Relative bands: quick fruit/oil notes fade faster than floral terpenols.
   const hopLoss = (0.0024 + oxygen * 0.012) * warmDays;
-  const s = { ...batch.sensory };
+  const addition = batch.customAdjunct ? finishAdjunct(batch.customAdjunct, batch.curve, {
+    boilTimeMin: recipe.boilTimeMin,
+    conditioningDays: batch.barrelDays,
+    packageThermalDays: warmDays,
+  }) : null;
+  const s = { ...(batch.sensoryBeforeAdjunct ?? batch.sensory) };
+  if (addition) {
+    for (const key of Object.keys(s)) s[key] = bound(s[key] + (addition.axisWeights[key] ?? 0));
+  }
   const raw = batch.descriptors ?? [];
   const extraTags = raw.filter(
     (tag) =>
@@ -412,6 +447,12 @@ export function taste(batch, options = {}) {
   if (s.stale > 2.5)
     candidates.push({ text: "旧纸盒", strength: s.stale * 1.3 });
   candidates.push(...off);
+  const additions = (addition?.budgets ?? []).flatMap(component => [
+    { text: component.direct, strength: component.directWeight, family: component.directFamily, threshold: 0.5 },
+    { text: component.evolved, strength: component.evolvedWeight, family: component.evolvedFamily, threshold: 0.3 },
+  ]).filter(note => note.text && note.strength > note.threshold)
+    .sort((a, b) => b.strength - a.strength);
+  candidates.push(...additions);
   const distinct = [
     ...new Set(
       candidates
@@ -434,9 +475,25 @@ export function taste(batch, options = {}) {
   const orderedExtras = [...extraTags].sort(
     (a, b) => Number(b === recipe.adjunct) - Number(a === recipe.adjunct),
   );
-  const afterNotes = orderedExtras.map((tag) => accents[tag]).filter(Boolean);
+  const presetFamilies = { chili: "pepperHeat", coffee: "coffeeCocoa", cocoa: "coffeeCocoa", pretzel: "savoury" };
+  const styleNotes = [...additions];
+  if (presetFamilies[recipe.adjunct]) {
+    // Use the same surviving strength already assigned to the preset's cup aroma.
+    const note = candidates.find(c => c.text === labels[recipe.adjunct]);
+    if (note) styleNotes.push({ ...note, family: presetFamilies[recipe.adjunct] });
+  }
+  const afterNotes = [...new Set([
+    ...additions.map(note => note.text),
+    ...orderedExtras.map(tag => accents[tag]).filter(Boolean),
+  ])];
+  const finishNotes = afterNotes.slice(0, 2).map(text => {
+    const cue = additions.find(note => note.text === text);
+    if (!cue) return text;
+    const degree = cue.strength < 0.9 ? "隐约有一点" : cue.strength >= 2 ? "能清楚尝到" : "嘴里还留着";
+    return degree + text;
+  });
   const accent = afterNotes.length
-    ? afterNotes.slice(0, 2).join("，") + "。"
+    ? finishNotes.join("，") + "。"
     : "";
   const colour = colourName(m.srm);
   const flags = off.map((f) => f.text + "味");
@@ -490,6 +547,8 @@ export function taste(batch, options = {}) {
   const styleId = options.styleId ?? recipe.styleId ?? recipe.id ?? "apa";
   return {
     note,
+    ...(addition ? { customAdjunct: addition } : {}),
+    phrases: { palate: first + "，" + body, finish: [tail, ...finishNotes, ...flags].join("，") },
     colour,
     descriptors,
     afterNotes,
@@ -505,6 +564,6 @@ export function taste(batch, options = {}) {
       max: 10,
       anchors: anchors.map(([value, label]) => ({ value, label })),
     })),
-    bjcp: assess(styleId, m, s, flags),
+    bjcp: assess(styleId, m, s, flags, styleNotes, recipe.styleId ?? recipe.presetId ?? "apa"),
   };
 }

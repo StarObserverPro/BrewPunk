@@ -79,7 +79,7 @@ export function simulateFermentation(input) {
     for (const step of steps){
         const tempC = step.tempC;
         const days = Math.max(0, Math.round(step.days));
-        const rate = tempResponse(tempC, yeast);
+        const rate = tempResponse(tempC, yeast) * (step.rateFactor ?? 1);
         const flocBase = FLOC_RATE[yeast.flocculation];
         for(let d = 0; d < days; d++){
             for(let h = 0; h < 24; h++){

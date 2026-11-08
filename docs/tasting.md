@@ -18,12 +18,18 @@
 
 `sampleTastings(batch, {seed, runs, ...serviceOptions})` 固定已经酿成的酒，仅重抽来客。返回评论数、来客数、平均喜好百分制的 P10/P50/P90。改 `proseSeed` 只重写同一次服务的用词与跟帖。酒液、售出量、留言者和个人评分可逐项对照重放。
 
-## 将来接入 Six Luna
+## 在线成酒与酒客发言
 
-`guestPrompt(post)` 返回 `{instructions, input}`。input 是客人视角的字段白名单，包括其品味经验、杯中印象、当晚的一件事、篇幅与是否来过。游戏当前使用按杯中感受组织的离线中文短评。服务端接入模型时，以批次、场次和留言 id 做缓存，只更新文字。一次生成失败可以沿用这一条的本地正文。回帖若接入模型，应另给回复人可见的原帖和目击信息。
+成酒端接收基酒和材料的结构化画像，物理结果重算后再生成品鉴和风格评语。酒客端每晚只看客人可感知的事实，返回的原帖和跟帖不能改客人、评分或出杯顺序。未配置在线服务时两条路径都能本地完成。具体字段与缓存见[增味裁决与两次调用](adjunct-adjudication.md)。
 
 ## 模型依据
 
 - BJCP 评分项目及风格范围。[评审说明](https://www.bjcp.org/exam-certification/program/studying/beer-exam-study-guide/beer-evaluation/) · [2021 指南](https://www.bjcp.org/beer-styles/beer-style-guidelines/)
 - 不同类型香气分子在储存中的稳定性有别。游戏所用速度常数为演示参数。[Schubert et al., Food Chemistry, 2022](https://pubmed.ncbi.nlm.nih.gov/35843079/)
 - 放瓶后的温度、时间和酵母状态会影响碳酸化进程。[American Homebrewers Association](https://www.homebrewersassociation.org/how-to-brew/mastering-the-art-of-bottle-conditioning/)
+
+### 特征风味如何进入评语
+
+经典风格会读本杯里已经能察觉的风味。若葱蒜气、辣椒的热辣或咸鲜明显盖过经典风格预期，香气、风味、整体印象可分别失分，评语会指出具体闻到或尝到的东西。阈值以下的微量投料不会触发这项偏差。与美式 IPA 相容的柑橘调也可以保留原分。成分名、面板上申报的克数、基酒本身的普通酒花香均不直接触发该项判分。
+
+同一杯可切换到 30A 香料、草本或蔬菜啤酒。游戏用所选底方作为基酒参照，放宽对酒花香下限的要求，再看已申报增味是否还有可辨识的气息，是否盖过杯中的基酒。两项都合适时，评语点出融合得当的那一味。这里的感知阈值、权重和扣分是游戏调校。BJCP 的原文要求参赛者说明所用香料、草本或蔬菜以及基酒或所追求的性格，评审看二者融合和平衡的表现。[BJCP 2021 · 30A](https://www.bjcp.org/style/2021/30/30A/spice-herb-or-vegetable-beer/)

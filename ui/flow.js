@@ -12,7 +12,7 @@ export const beerName = (d) => d.name || styles[d.preset];
 export const newSeed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 export function newDraft(seed = newSeed()) {
   return {
-    preset: "hazy-ipa", options: { volumeL: 25, processVersion: 2 }, name: "", benchmark: "",
+    preset: "hazy-ipa", options: { volumeL: 25, processVersion: 2, baselineVersion:1 }, name: "", benchmark: "",
     choices: { precision: true, sanitation: true, temperatureControl: false, closedTransfer: true },
     step: 0, seed, inspected: false, tasted: false,
   };
@@ -53,7 +53,15 @@ export function delivery(tap) {
     volumeL: batch.yieldL ?? recipe.batchVolumeL, ageDays: recipe.ageDays, packageType: recipe.packaging,
     serviceChoices: tap.serviceChoices,
   };
-  return { recipe, batch, options, night: simulateNight(batch, options) };
+  const night=simulateNight(batch,options);
+  const voiced=new Map(Object.values(tap.voices||{}).flat().map(p=>[p.id,p]));
+  for(const post of night.posts){
+    const alt=voiced.get(post.id);
+    if(!alt)continue;
+    post.text=alt.text;
+    if(post.reply && alt.replyText)post.reply.text=alt.replyText;
+  }
+  return { recipe, batch, options, night };
 }
 export function nightStatus(tap) {
   const result = delivery(tap);

@@ -33,10 +33,12 @@ npm run portable
 ## 设计与来源
 
 - [玩法需求与火柴版验收](docs/requirements.md)
+- [自定义增味、发酵四档和两种 Luna 调用](docs/adjunct-adjudication.md)
+- [社区配方与发酵参照](docs/brewing-references.md)
 - [核心架构、数据流与两套蒙特卡洛](docs/architecture.md)
 - [感官标尺、BJCP 评审、酒客分杯与文字接口](docs/tasting.md)
 - [插画机位、分层素材与交付要求](docs/art-direction.md)
 - [BrewLab 来源、固定版本和 MIT 声明](vendor/brewlab/NOTICE.md)
 - [BrewPunk MIT 许可证](LICENSE)
 
-火柴版使用本地文字生成酒客动态。`guestPrompt` 给出了可交给 Six Luna 的酒客视角；真实模型服务留待接入。模拟分和事故发生率是游戏参数。商品酒名称仅用作风味记忆参照。
+本地 Node 服务可通过服务进程的 `OPENAI_API_KEY` 启用 GPT-6 Luna。成酒增味裁决和每晚酒客打卡分别调用，密钥只留在服务端。静态版、单文件版和未配置密钥时走本地规则。模拟分和事故发生率使用游戏参数。

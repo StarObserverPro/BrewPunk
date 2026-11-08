@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createLuna } from "../server/luna.mjs";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,11 +16,69 @@ const types = {
   ".webp": "image/webp",
 };
 
+const adjudicate = createLuna();
+const endpoints = new Set(["/api/adjudicate", "/api/guests"]);
+
+async function api(request, response, path) {
+  function json(status, body) {
+    response
+      .writeHead(status, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      })
+      .end(JSON.stringify(body));
+  }
+  if (!endpoints.has(path)) return json(404, { error: "unknown_route" });
+  if (request.method !== "POST") return json(405, { error: "method" });
+  // This project's personal server binds loopback. Browser cross-site requests
+  // and rebinding hostnames cannot access a configured API key through it.
+  if (
+    !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(
+      request.headers.host || "",
+    )
+  )
+    return json(403, { error: "host" });
+  if (
+    request.headers.origin &&
+    request.headers.origin !== "http://" + request.headers.host
+  )
+    return json(403, { error: "origin" });
+  if (!request.headers["content-type"]?.startsWith("application/json"))
+    return json(415, { error: "content_type" });
+  try {
+    let length = 0;
+    const chunks = [];
+    for await (const part of request) {
+      length += part.length;
+      if (length > 32 * 1024) return json(413, { error: "body_size" });
+      chunks.push(part);
+    }
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    } catch {
+      return json(400, { error: "invalid_json" });
+    }
+    return json(200, await adjudicate(path.slice(5), body));
+  } catch (err) {
+    return json(err.status || 502, {
+      error:
+        err.status === 503
+          ? "offline"
+          : err.status === 400
+            ? "invalid_input"
+            : "unavailable",
+    });
+  }
+}
+
 createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(
       new URL(request.url, "http://localhost").pathname,
     );
+    if (pathname.startsWith("/api/"))
+      return await api(request, response, pathname);
     const target = resolve(
       root,
       "." + (pathname === "/" ? "/index.html" : pathname),
@@ -29,7 +88,9 @@ createServer(async (request, response) => {
     const content = await readFile(target);
     response
       .writeHead(200, {
-        "Content-Type": type.startsWith("image/") ? type : type + "; charset=utf-8",
+        "Content-Type": type.startsWith("image/")
+          ? type
+          : type + "; charset=utf-8",
         "Cache-Control": "no-store",
       })
       .end(content);
