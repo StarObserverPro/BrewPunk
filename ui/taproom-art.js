@@ -30,5 +30,7 @@ export function taproomShot({ servings = [], shown = 1, evening = 1, batchSeed =
 
 export function taproomPlate(shot = "empty") {
   return '<img class="taproom-photo" src="' + (pictures[shot] || pictures.empty) +
-    '" alt="' + (shot === "empty" ? "夜间六酒头空吧台" : "酒房营业场景") + '" decoding="async">';
+    '" alt="' + (shot === "empty" ? "夜间六酒头空吧台" : "酒屋营业场景") + '" decoding="async">';
 }
+
+export const shots = Object.keys(pictures);
