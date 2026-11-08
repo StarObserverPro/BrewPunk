@@ -13,7 +13,7 @@ async function request(route, data) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-      signal: AbortSignal.timeout(40000),
+      signal: AbortSignal.timeout(100000),
     });
     return response.ok ? await response.json() : null;
   } catch {
