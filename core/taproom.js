@@ -412,6 +412,7 @@ export function simulateNight(batch, options = {}) {
               : null;
           posts.push({
             id: "s" + session + "-v" + visitors,
+            session,
             name: guest.name,
             time,
             text: note.text,

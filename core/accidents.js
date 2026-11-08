@@ -32,7 +32,7 @@ export function processEvents(recipe, seed, controls) {
     controls.temperatureControl === false ? 0.54 : 0.04,
     1.1,
     4.6,
-    (x) => `控温箱第一晚回温，头两天的酒液比设定高 ${x.toFixed(1)} °C。`,
+    (x) => `第一晚桶温升了，测得酒液比设定高 ${x.toFixed(1)} °C。`,
     "°C",
   );
   roll(

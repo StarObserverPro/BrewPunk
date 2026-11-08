@@ -1,0 +1,388 @@
+:root {
+  color-scheme: light;
+  --paper: #f7f3e8;
+  --ink: #26352b;
+  --green: #304f3b;
+  --muted: #626a5a;
+  --rule: #c7c9b6;
+  --orange: #ae491d;
+  font:
+    16px/1.6 system-ui,
+    "PingFang SC",
+    sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+header,
+main,
+footer {
+  width: min(1120px, calc(100% - 48px));
+  margin: auto;
+}
+header {
+  height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--ink);
+}
+.wordmark {
+  color: var(--ink);
+  text-decoration: none;
+  font:
+    bold 26px Georgia,
+    serif;
+  letter-spacing: -1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.seal {
+  font: 700 20px/32px serif;
+  width: 32px;
+  text-align: center;
+  background: var(--green);
+  color: var(--paper);
+  border-radius: 7px;
+  transform: rotate(-5deg);
+}
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 6px;
+  padding: 8px 14px;
+}
+button:hover {
+  background: #e7e9da;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #a95619;
+  outline-offset: 3px;
+}
+button[aria-current="page"] {
+  background: var(--green);
+  color: white;
+}
+nav {
+  display: flex;
+  gap: 6px;
+}
+nav button {
+  font-size: 0.87rem;
+  border-color: transparent;
+}
+main {
+  padding: 28px 0 50px;
+}
+.spread {
+  display: grid;
+  grid-template-columns: 1fr 1.13fr;
+  gap: clamp(25px, 4vw, 65px);
+  align-items: start;
+}
+.plate {
+  border: 1px solid #a2a38c;
+  border-radius: 7px;
+  background: #ebe6d2;
+  overflow: hidden;
+}
+.plate svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.caption {
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #a2a38c;
+  color: #515a48;
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+  letter-spacing: 0.1em;
+}
+.kicker,
+.folio,
+.tapno {
+  font:
+    700 12px/1.4 ui-monospace,
+    monospace;
+  color: var(--green);
+  letter-spacing: 0.16em;
+}
+.folio {
+  color: var(--orange);
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font:
+    700 clamp(30px, 4.5vw, 57px) / 1.19 Georgia,
+    "Songti SC",
+    serif;
+  letter-spacing: -0.035em;
+  margin: 7px 0 10px;
+}
+h2 {
+  font:
+    700 25px/1.35 Georgia,
+    "Songti SC",
+    serif;
+  margin-bottom: 5px;
+}
+h3 {
+  font-size: 17px;
+  margin: 16px 0 6px;
+}
+.intro {
+  color: var(--muted);
+  margin-bottom: 21px;
+}
+.section {
+  border-top: 1px solid var(--rule);
+  padding: 17px 0;
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 12px 0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.87rem;
+  color: var(--muted);
+}
+select,
+input {
+  width: 100%;
+  min-width: 0;
+  background: #fffdf5;
+  border: 1px solid #afb6a4;
+  border-radius: 5px;
+  height: 40px;
+  padding: 4px 9px;
+  color: var(--ink);
+}
+.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+  font-weight: 650;
+}
+.primary:hover {
+  background: #203928;
+}
+.actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 13px;
+  padding: 0;
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.steps [aria-current] {
+  color: var(--orange);
+  font-weight: 750;
+}
+.log {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid #b6a16b;
+  color: #535b4b;
+  background: #efecdd;
+}
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.metrics b {
+  font:
+    650 14px/1.5 ui-monospace,
+    monospace;
+  padding: 5px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.small,
+small {
+  font-size: 0.83rem;
+  color: var(--muted);
+}
+details {
+  margin: 10px 0;
+}
+summary {
+  cursor: pointer;
+  color: var(--green);
+  font-weight: 650;
+}
+.axis {
+  margin: 9px 0;
+}
+.axis meter {
+  width: 100%;
+  height: 12px;
+  display: block;
+  accent-color: #69875c;
+}
+.axis small {
+  display: block;
+}
+.taplist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 20px;
+}
+.taplist button {
+  text-align: left;
+  min-height: 68px;
+  background: #f3efdf;
+  overflow-wrap: anywhere;
+}
+.taplist .active {
+  border: 2px solid var(--green);
+  background: #e1e7d7;
+}
+.tapno {
+  display: block;
+  font-size: 11px;
+}
+.post {
+  border-top: 1px solid var(--rule);
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+.post header {
+  width: auto;
+  height: auto;
+  border: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  font-size: 0.85rem;
+}
+.reply {
+  margin: 6px 0 0 16px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+footer {
+  border-top: 1px solid var(--rule);
+  padding: 16px 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+footer span {
+  padding: 0 6px;
+}
+#notice {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 5px;
+  background: var(--green);
+  color: #fff;
+  max-width: 90vw;
+}
+#notice:not(:empty) {
+  padding: 7px 13px;
+}
+@media (max-width: 720px) {
+  header,
+  main,
+  footer {
+    width: calc(100% - 32px);
+  }
+  header {
+    height: 62px;
+  }
+  .wordmark {
+    font-size: 22px;
+  }
+  nav button {
+    padding: 7px;
+  }
+  .spread {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  main {
+    padding-top: 17px;
+  }
+  .plate svg {
+    max-height: 200px;
+  }
+  .steps {
+    margin-bottom: 0;
+  }
+  .caption {
+    padding: 5px 12px;
+  }
+  h1 {
+    font-size: 33px;
+  }
+  .taplist {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .journal {
+    animation: leaf 0.16s ease-out;
+  }
+  @keyframes leaf {
+    from {
+      opacity: 0.65;
+      transform: translateY(3px);
+    }
+  }
+}
+.axis-ticks {
+  position: relative;
+  margin: -3px 2px 3px;
+  height: 7px;
+}
+.axis-ticks i {
+  position: absolute;
+  top: 0;
+  height: 5px;
+  border-left: 1px solid #625b4b;
+}

@@ -40,3 +40,20 @@ test("every starting recipe completes a batch, a tasting and finite service", ()
       assert.ok(guestPrompt(post).instructions.length > 0);
   }
 });
+
+test("published check-ins appear on the night of their serving and never earlier", () => {
+  const batch = brew(makeRecipe("house-pale-ale", { volumeL: 25 }), 3);
+  const service = simulateNight(batch, { seed: 42, evening: 3 });
+  assert.ok(service.posts.some((p) => p.session === 3));
+  for (const p of service.posts) {
+    assert.ok(
+      service.servings.some(
+        (s) =>
+          s.guest === p.name &&
+          s.session === p.session &&
+          s.glassId === p.glassId,
+      ),
+    );
+    assert.ok(p.session >= 3 && p.session < 3 + service.sessionCount);
+  }
+});

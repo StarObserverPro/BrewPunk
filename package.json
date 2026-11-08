@@ -1,0 +1,13 @@
+{
+  "name": "brewpunk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.js",
+    "portable": "node scripts/portable.mjs"
+  }
+}
