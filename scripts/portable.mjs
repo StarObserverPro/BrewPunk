@@ -41,12 +41,19 @@ const entry = source.match(
 );
 if (!styleRef || !entry)
   throw Error("Expected a local stylesheet and a module entry in index.html");
-const css = await read(styleRef[1]);
+let inkCSS = await read("ui/ink.css");
+for (const name of await readdir(path.join(root, "assets/ink"))) {
+  const mime = name.endsWith(".svg") ? "image/svg+xml" : name.endsWith(".ttf") ? "font/ttf" : null;
+  if (mime) inkCSS = inkCSS.replaceAll("../assets/ink/" + name, "data:" + mime + ";base64," + (await readFile(path.join(root,"assets/ink",name))).toString("base64"));
+}
+const css = await read(styleRef[1]) + "\n" + inkCSS;
 const notice = [
   await read("LICENSE"),
   await read("vendor/brewlab/LICENSE"),
+  await read("assets/ink/OFL.txt"),
 ].join("\n\n");
 const html = source
+  .replace('  <link rel="stylesheet" href="./ui/ink.css">', "")
   .replace(styleRef[0], () => "<style>" + css + "</style>")
   .replace(
     entry[0],

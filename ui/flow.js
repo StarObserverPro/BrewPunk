@@ -77,7 +77,7 @@ export function nightStatus(tap) {
 }
 export function shelve(state, slot) {
   if (state.taps[slot] || slot < 0 || slot > 5) throw Error("这一席已经有酒了，请另选空席");
-  if (!state.draft.tasted) throw Error("先尝过第一杯，再送去酒房");
+  if (!state.draft.tasted) throw Error("先尝过第一杯，再送去酒屋");
   const tap = {
     slot, number: state.nextNumber++, d: structuredClone(state.draft), night: 1,
   };
