@@ -13,7 +13,7 @@ import { sampleTastings, packageCondition } from "../core/taproom.js";
 import { wort, sketch } from "./art.js";
 import { nightFeed, feedProgress, readingDelay } from "./live-feed.js";
 import { incidents, incidentFrames, resetResponses } from "./incidents.js";
-import { taproomPlate, taproomShot, shots } from "./taproom-art.js";
+import { taproomPlate, taproomShot, shots, pictures } from "./taproom-art.js";
 import { packagingShot, packagingSequence } from "./packaging-art.js";
 import { assetAlbum } from "./asset-album.js";
 import { ingredientsPage } from "./ingredient-cards.js";
@@ -617,6 +617,14 @@ function animateText() {
 }
 const cropWatch=new ResizeObserver(entries=>entries.forEach(e=>cropPlate(e.target)));
 let autoPage;
+function openingRoom(retry = false) {
+  const photo = pictures.empty;
+  return '<main class="world room opening-room"><section class="scene"><div class="art">' +
+    '<img class="opening-haze" src="' + photo + '" alt="">' + taproomPlate("empty") +
+    '</div></section><section class="story-area"><div class="readbox" role="status">' +
+    '<p class="story-text">我擦了擦靠窗的桌子，把椅子摆好。再放几张杯垫，就可以开门了。</p>' +
+    (retry ? btn("再去门口看看", "retry-stock") : "") + '</div></section></main>';
+}
 let stocking = false;
 function render(focus = true) {
   clearTimeout(autoPage);
@@ -628,8 +636,7 @@ function render(focus = true) {
   sessionOf(state);
   if (state.view === "room" && needsStock(state)) {
     clearTimeout(alarmTimer);
-    app.innerHTML = '<main class="world"><div class="art">'+ kitchenPlate("kitchen-night", "—") +
-      '</div><section class="story-area"><div class="readbox" role="status">楼下快开门了，正在准备这桶酒的留言……</div></section></main>';
+    app.innerHTML = openingRoom();
     if (!stocking) {
       stocking = true;
       stockRoom(state, voicePosts).then(() => {
@@ -638,7 +645,7 @@ function render(focus = true) {
         render();
       }).catch(() => {
         stocking = false;
-        app.innerHTML = '<main class="world"><div class="action-area">' + btn("重新准备留言", "retry-stock") + '</div></main>';
+        app.innerHTML = openingRoom(true);
       });
     }
     return;

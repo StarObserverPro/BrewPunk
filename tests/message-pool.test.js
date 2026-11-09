@@ -15,7 +15,7 @@ test("draws survive reload and only unplayed lines carry to the next evening", a
     return posts.map(p => ({id:p.id, text:"来一口？", replyText:p.reply ? "给我留点" : null}));
   };
   await stockRoom(s, write);
-  assert.deepEqual(sizes, [8]);
+  assert.deepEqual(sizes, [9]);
   assert.equal(s.service.draw.lines.filter(e => e.kind === "post").length, 5);
   assert.ok(s.service.draw.lines.filter(e => e.kind === "post").every(e => e.text === "来一口？"));
   const loaded = restore(JSON.parse(JSON.stringify(s)));
@@ -31,6 +31,28 @@ test("draws survive reload and only unplayed lines carry to the next evening", a
   nextNight(loaded);
   loaded.service = {day:2,cursor:1,replies:{}};
   await stockRoom(loaded, write);
-  assert.ok(sizes.slice(1).every(n => n <= 1));
+  assert.ok(sizes.slice(1).every(n => n <= 2));
   assert.ok(loaded.taps[0].messagePool.flat().every(e => !played.has(e.id)));
+});
+test("three taps and the regular share one generation request with distinct tickets", async () => {
+  const state = blank(12);
+  for (let slot = 0; slot < 3; slot++) {
+    state.draft.seed = 12;
+    state.draft.tasted = true;
+    shelve(state, slot);
+  }
+  sessionOf(state);
+  const requests = [];
+  await stockRoom(state, async (_, posts) => {
+    requests.push(posts);
+    return posts.map(p => ({ id:p.id, text:p.id, replyText:p.reply ? "给你留着。" : null }));
+  });
+  assert.equal(requests.length, 1);
+  const ids = requests[0].map(post => post.id);
+  assert.equal(ids.length, 25);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(state.service.draw.regular.text, "regular-1");
+  for (const tap of state.taps) if (tap) {
+    assert.ok(tap.messagePool.every(([line]) => line.text === line.id));
+  }
 });

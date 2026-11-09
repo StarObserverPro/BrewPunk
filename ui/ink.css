@@ -161,3 +161,9 @@ input[type=number]{font-family:var(--pen);font-size:19px;font-weight:bold;letter
   .recipe-grid { grid-template-columns: minmax(0,1fr); }
   .recipe-leaf { padding-block: 7px; }
 }
+
+.opening-haze {position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;filter:blur(24px) brightness(.70) saturate(.7);}
+.opening-room .art .taproom-photo {inset:0;width:100%;height:100%;object-fit:contain;background:transparent;animation:none;}
+@media (orientation:portrait) {
+  .opening-room .art .taproom-photo {object-fit:cover;object-position:var(--subject,50%) center;}
+}
