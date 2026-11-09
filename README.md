@@ -41,4 +41,4 @@ npm run portable
 - [BrewLab 来源、固定版本和 MIT 声明](vendor/brewlab/NOTICE.md)
 - [BrewPunk MIT 许可证](LICENSE)
 
-本地 Node 服务可通过服务进程的 `OPENAI_API_KEY` 启用 GPT-6 Luna。成酒增味裁决和每晚酒客打卡分别调用，密钥只留在服务端。静态版、单文件版和未配置密钥时走本地规则。模拟分和事故发生率使用游戏参数。
+本地 Node 服务可通过服务进程的 `OPENAI_API_KEY` 启用 GPT-6 Luna。成酒增味裁决和开门前的酒客留言备货分别调用，密钥只留在服务端。本地 Node 未设密钥时尝试已登录的 Codex CLI。静态版、单文件版和未配置密钥的线上 Worker 使用本地留言。在线发布请按[酒客留言部署验收](docs/adjunct-adjudication.md#sites-部署)检查真实请求与跨夜库存。模拟分和事故发生率使用游戏参数。

@@ -19,9 +19,11 @@ const stories = [
 ];
 export function sessionOf(s){const svc=s.service??={day:1,closed:false,cursor:1,filter:null,replies:{}};svc.house??=newHouse();return svc;}
 export function linesFor(s){
- const svc=sessionOf(s),out=[];
+ const svc=sessionOf(s),out=svc.draw ? svc.draw.lines.slice() : [];
+ if (!svc.draw) {
  s.taps.slice(0,3).forEach((t,i)=>{if(!t)return;for(const e of nightFeed(delivery(t).night,t.night)){if(e.kind==="quiet")continue;out.push({...e,id:i+"-"+e.id,slot:i,beer:beerName(t.d),minute:e.time.split(" ").at(-1)});}});
  out.sort((a,b)=>a.minute.localeCompare(b.minute));
+ }
  const n=(svc.day-1)%3,k=Math.floor((svc.day-1)/3)%2,[title,text,reply]=stories[n][k],id="regular-"+svc.day;
  out.splice(Math.floor(out.length*.55),0,{id,slot:n+3,beer:svc.house[n],name:title,text,reply,kind:"post"});
  if(svc.replies[id]){const i=out.findIndex(x=>x.id===id);out.splice(i+1,0,{id:id+"-reply",slot:n+3,beer:svc.house[n],name:"隔壁桌",text:reply,kind:"reply"});}

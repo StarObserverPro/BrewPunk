@@ -1,5 +1,6 @@
 import { recipePicker, hasPickedRecipe } from "./recipe-picker.js";
 import {cropPlate} from "./framing.js";
+import { needsStock, stockRoom, retireShown } from "./message-pool.js";
 import {sessionOf,linesFor} from "./service.js";
 import { materialArt } from "./adjunct-art.js";
 import { adjudicateDraft, applyAdjudication, voicePosts } from "./ai-client.js";
@@ -150,12 +151,11 @@ function finishStory() {
 }
 function offerServiceIncident() {
   if (state.view !== "room" || state.story || sessionOf(state).closed) return;
-  for(const other of state.taps.slice(0,3))if(other && other.slot!==state.selected)supplyNight(other);
   const tap = state.taps[state.selected];
   if (!tap || batchOf(tap.d).recipe.processVersion < 2) return;
-  if (tap.serviceChoices?.[tap.night]?.chillLine !== undefined) {supplyNight(tap);return;}
+  if (tap.serviceChoices?.[tap.night]?.chillLine !== undefined) return;
   const event = delivery(tap).night.serviceEvents.find(e => e.session === tap.night && e.id === "tap-foam");
-  if (!event) {supplyNight(tap);return;}
+  if (!event) return;
   play("酒头的第一杯", [frame("第一杯泡沫特别多，接液杯很快就满了一层。", { art: "tap", take: "首杯泡沫", choice: "incident", eventId: "tap-foam" })]);
 }
 function chooseIncident(rescue) {
@@ -617,6 +617,7 @@ function animateText() {
 }
 const cropWatch=new ResizeObserver(entries=>entries.forEach(e=>cropPlate(e.target)));
 let autoPage;
+let stocking = false;
 function render(focus = true) {
   clearTimeout(autoPage);
   clearInterval(typingTimer);
@@ -624,6 +625,24 @@ function render(focus = true) {
 
   feedAnimation?.cancel();
   typing = false;
+  sessionOf(state);
+  if (state.view === "room" && needsStock(state)) {
+    clearTimeout(alarmTimer);
+    app.innerHTML = '<main class="world"><div class="art">'+ kitchenPlate("kitchen-night", "—") +
+      '</div><section class="story-area"><div class="readbox" role="status">楼下快开门了，正在准备这桶酒的留言……</div></section></main>';
+    if (!stocking) {
+      stocking = true;
+      stockRoom(state, voicePosts).then(() => {
+        stocking = false;
+        save();
+        render();
+      }).catch(() => {
+        stocking = false;
+        app.innerHTML = '<main class="world"><div class="action-area">' + btn("重新准备留言", "retry-stock") + '</div></main>';
+      });
+    }
+    return;
+  }
   const ghost = fadeSnapshot();
   const context = sceneState();
   const label = state.view === "room" ? "楼下酒屋 · 第 "+sessionOf(state).day+" 晚"+(sessionOf(state).closed?" · 已打烊":" · 营业中") :
@@ -785,23 +804,9 @@ async function openFirstCup(d, replay = true) {
   save();
   render();
 }
-const pendingVoices=new WeakMap();
-function supplyNight(tap){
-  if(!tap)return;
-  const day=tap.night; tap.voices??={};
-  if(tap.voices[day]?.length || pendingVoices.get(tap)===day)return;pendingVoices.set(tap,day);
-  tap.voices[day]=[];save();
-  const {batch,night}=delivery(tap);
-  voicePosts(batch,night.posts.filter(p=>p.session===day)).then(rows=>{
-    pendingVoices.delete(tap);if(!rows)return;
-    const target=[...state.taps,...state.archive].find(t=>t && t.number===tap.number && t.d.seed===tap.d.seed);
-    if(!target)return;
-    target.voices[day]=rows;save();
-    if(state.view==="room" && state.taps[state.selected]===tap && tap.night===day) render(false);
-  });
-}
 function doAction(button) {
   const action = button.dataset.act;
+  if (stocking || action === "retry-stock") return;
   if (action === "retry-cup") {
     const d=[state.draft,...state.taps.filter(Boolean).map(t=>t.d),...state.archive.map(t=>t.d)].find(d=>String(d.seed)===button.dataset.seed);
     if(d)void openFirstCup(d,false);
@@ -817,7 +822,7 @@ function doAction(button) {
   if(action==="reply"){svc.replies[button.dataset.id]=true;svc.cursor++;return;}
   if(action==="close-service"){svc.closed=true;return;}
   if(action==="review"){state.overlay={type:"review"};return;}
-  if(action==="morning"||action==="new-service"){if(!svc.closed)return;for(const t of state.taps.slice(0,3).filter(Boolean)){state.selected=t.slot;if(nightStatus(t).finished)archiveTap(state);else nextNight(state);}state.selected=Math.max(0,state.taps.findIndex(Boolean));state.service={day:svc.day+1,closed:false,cursor:1,filter:null,replies:{}};state.overlay=null;state.view=action==="morning"?"kitchen":"room";if(state.view==="room")offerServiceIncident();return;}
+  if(action==="morning"||action==="new-service"){if(!svc.closed)return;retireShown(state, linesFor(state));for(const t of state.taps.slice(0,3).filter(Boolean)){state.selected=t.slot;if(nightStatus(t).finished)archiveTap(state);else nextNight(state);}state.selected=Math.max(0,state.taps.findIndex(Boolean));state.service={day:svc.day+1,closed:false,cursor:1,filter:null,replies:{}};state.overlay=null;state.view=action==="morning"?"kitchen":"room";if(state.view==="room")offerServiceIncident();return;}
   if(action==="plain"&&state.draft.step===3){if(!state.draft.addedAt){state.draft.options.adjunct="none";delete state.draft.options.customAdjunct;}state.draft.options.barrelDays=0;play("照原方",[frame("把砧板收起。今天，让麦芽和酒花自己说话。",{art:"pack"})],{step:4});return;}
   if (action === "continue") {
     if (typing) { revealText(); return "keep"; }
@@ -1010,6 +1015,7 @@ app.addEventListener("input",event=>{
   if(output && litres)output.textContent=(Number(event.target.value)/litres).toFixed(2);
 });
 document.addEventListener("keydown", (event) => {
+  if (stocking) return;
   if (transitionBusy && ["Escape", " ", "Enter"].includes(event.key)) { event.preventDefault(); return; }
   if (event.key === "Escape" && state.overlay) {
     state.overlay = null; save(); render(); return;
