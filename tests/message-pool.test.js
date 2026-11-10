@@ -50,6 +50,10 @@ test("three taps and the regular share one generation request with distinct tick
   assert.equal(requests.length, 1);
   const ids = requests[0].map(post => post.id);
   assert.equal(ids.length, 25);
+  const prompts = requests[0].map(p => p.prompt);
+  assert.equal(new Set(prompts.map(p => p.天气)).size, 1);
+  assert.ok(prompts.every(p => p.酒牌 && p.天气 && p.邻桌 && p.心情 && p.此刻));
+  assert.ok(prompts.filter(p => p.杯中印象.length === 4).length >= 24);
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(state.service.draw.regular.text, "regular-1");
   for (const tap of state.taps) if (tap) {

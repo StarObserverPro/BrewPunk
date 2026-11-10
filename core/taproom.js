@@ -62,54 +62,25 @@ const sideTalk = [
   ["雨还没停。我的车窗好像开着。", "关了，我路过看了。"],
   ["上次坐这个位置，桌腿就短一截。", "底下那张酒垫垫回去。"],
 ];
-const guess = {
-  葡萄柚皮: "柚子皮",
-  芒果: "芒果泥",
-  黑醋栗: "浆果",
-  杏桃: "桃子",
-  可可: "可可豆",
-  熟桃: "桃汁",
-  香草: "香草荚",
-  烤面包边: "咖啡豆",
-  焦糖: "红糖",
-  白花: "接骨木花",
-  草本: "茶叶",
-  樱桃: "樱桃汁",
-};
 /** This deliberately exposes only the drinker's view, never the recipe, score or fault log. */
 export function guestPrompt(post) {
   return { instructions: guestVoice, input: { ...post.prompt } };
 }
 
 function glassFacts(t, foam) {
-  const s = t.sensory,
-    first = t.descriptors[0] ?? "麦香";
-  const tasteWord =
-    s.acidity >= 3.5
-      ? "酸"
-      : s.bitterness >= 4.2
-        ? "苦"
-        : s.sweetness >= 4.8
-          ? "甜"
-          : s.hopAroma >= 5
-            ? "香"
-            : "淡";
-  const small = [
-    ...t.afterNotes,
-    ...t.flags.map((f) => (f === "气泡微弱" ? "泡几乎没了" : "能尝到" + f)),
-    "是" + t.colour + "的",
-    "闻着像" + first,
-    s.body > 6 ? "口感挺厚" : s.body < 3.4 ? "口感挺轻" : "喝着不厚",
-    s.acidity >= 3.5
-      ? "一入口就酸"
-      : s.bitterness >= 4.2
-        ? "咽完还有点苦"
-        : s.sweetness >= 4.8
-          ? "后面有点甜"
-          : "喝着挺温和",
-  ];
-  if (foam) small.unshift("第一杯泡沫特别多");
-  return { first, small, tasteWord };
+  const s = t.sensory;
+  const mouth = s.body > 6 ? "喝一小口也挺占嘴" : s.body < 3.4 ? "一下就咽下去了" : "喝着不厚";
+  const tail = t.afterNotes.some(x => x.includes("咸")) ? "嘴唇上有一点咸" :
+    s.acidity >= 3.5 ? "舌头两边有点酸" : s.bitterness >= 4.2 ? "咽下去一会儿还有点苦" :
+    s.sweetness >= 4.8 ? "嘴里还剩点甜" : "咽下去没觉得冲";
+  const bubbles = foam ? "得等那层泡下去才好喝" : s.carbonation < 2.1 ? "嘴里没怎么冒泡" : "刚碰到舌头有点扎";
+  const scent = t.descriptors.slice(0, 2).join(" ");
+  const association = /桃|果|橘|柑|柚|莓|醋栗/.test(scent) ? "也许会想起剥东西时手上沾的香气，或者只觉得闻起来比喝起来甜" :
+    /烤|咖啡|焦|可可|巧克力/.test(scent) ? "也许有点像街上刚出炉的东西，隔远了又闻不清" :
+    /花|草|松/.test(scent) ? "可能是某种叶子揉过的味，也可能只觉得凑近才闻得到" :
+    "也许觉得这味道在哪儿碰见过，再喝一口又抓不住了";
+  return { small:[mouth, tail, bubbles], association };
+
 }
 
 function affinity(sensory, guest, mood) {
@@ -138,6 +109,7 @@ function visitReport(
   foam,
   seenTalk,
   fit,
+  mood,
 ) {
   const f = glassFacts(glass, foam);
   const liking = fit >= 0.64 ? "喜欢" : fit >= 0.43 ? "一般" : "不合口味";
@@ -151,7 +123,7 @@ function visitReport(
         )
       : null;
   if (life) seenTalk.add(life[0]);
-  const prime = foam ? f.small[0] : pick(r, f.small);
+  const prime = foam ? f.small[2] : pick(r, f.small);
   const preference = {
     喜欢: ["我还想喝。", "下杯还点它。", "这口我喜欢。"],
     一般: ["半杯刚好。", "还行。", "我先慢慢喝。"],
@@ -162,53 +134,10 @@ function visitReport(
   for (let attempt = 0; attempt < 6; attempt++) {
     const detail = attempt ? pick(r, f.small) : prime;
     const verdict = pick(r, preference[liking]);
-    if (len === "短")
-      text = pick(r, [
-        detail + "。",
-        f.tasteWord + "。" + verdict,
-        detail + "，" + verdict,
-        "有点" + f.tasteWord + "。",
-        "这杯" + detail + "。" + verdict,
-        "三口下去，" + detail + "。",
-      ]);
-    else if (life) text = detail + "。" + life[0];
-    else if (
-      guest.confidence > 0.66 &&
-      guest.experience < 0.53 &&
-      guess[f.first]
-    )
-      text =
-        pick(r, [
-          "我赌里面放了" + guess[f.first] + "。",
-          "这味道我熟，八成有" + guess[f.first] + "。",
-        ]) + (len === "长" ? "问我怎么知道的？猜的。" : "");
-    else if (len === "长" || guest.experience > 0.65) {
-      const note = pick(r, [
-        "闻着有" + f.first + "，",
-        "凑近了才闻着点" + f.first + "的味道，",
-        "刚倒下来先闻到" + f.first + "，",
-        "一杯见底，最记得" + f.first + "那股香，",
-      ]);
-      text =
-        note +
-        pick(
-          r,
-          f.small.filter((x) => !x.startsWith("闻着")),
-        ) +
-        "。" +
-        (len === "长" && history ? "上回我也点的它。" : "") +
-        verdict;
-    } else if (history)
-      text =
-        pick(r, [
-          "上回也是这桶。今天" + detail + "。",
-          "又点了它，" + detail + "。",
-        ]) + verdict;
-    else
-      text =
-        group && r() < 0.5
-          ? "同桌递来一口，" + detail + "。" + verdict
-          : detail + "。" + verdict;
+    if (life) text = life[0] + (liking === "喜欢" ? "这杯给我留着啊。" : verdict);
+    else if (history) text = pick(r, ["上次我就坐这儿。", "哎，又点到这桶了。"]) + verdict;
+    else if (group && r() < .45) text = pick(r, ["你先尝我的。", "你那杯也给我抿一口？"]) + verdict;
+    else text = detail + "。" + verdict;
     if (!recent.has(text)) break;
   }
   const replyText = life
@@ -241,7 +170,10 @@ function visitReport(
             : "偏爱温和的酒",
       表达把握: guest.confidence > 0.66 ? "说话很笃定" : "按感受说",
       酒牌: board,
-      杯中印象: [prime, "闻着像" + f.first],
+      杯中印象: [f.association, ...f.small.map(hint => "可能留意到：" + hint)],
+      心情: mood < .28 ? "有点烦，懒得解释" : mood > .72 ? "今天挺高兴，有心情搭话" : "坐一会儿，没什么特别的事",
+      此刻: guest.experience > .82 && guest.confidence > .52 ? "碰巧有个熟悉的联想，可以试着比划一下" :
+        pick(r, ["心思还在酒桌外的事上", "正看酒牌上的名字", "听见邻桌的动静", "只在意这口想不想继续喝", "刚从外面进来"]),
       反应: liking,
       今晚: life?.[0] ?? (group ? "和同桌分尝" : "自己点的"),
       篇幅: len,
@@ -375,7 +307,8 @@ export function simulateNight(batch, options = {}) {
         visitors++;
         eveningVisits++;
         const time = pourClock(eveningVisits, session);
-        const fit = affinity(glass.sensory, guest, mood());
+        const guestMood = mood();
+        const fit = affinity(glass.sensory, guest, guestMood);
         totalFit += fit;
         returns.add(guest.name);
         servings.push({
@@ -398,6 +331,7 @@ export function simulateNight(batch, options = {}) {
             foam,
             seenTalk,
             fit,
+            guestMood,
           );
           recent.add(note.text);
           const reply =
